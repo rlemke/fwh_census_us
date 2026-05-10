@@ -1,0 +1,132 @@
+/** Database ingestion facets that persist extracted census datasets. */
+namespace census.Ingestion {
+    use census.types
+
+    /** Result of importing a census dataset into the database. */
+    schema IngestionResult {
+        dataset_key: String,
+        record_count: Long,
+        data_type: String,
+        imported_at: String
+    }
+
+    /**
+     * Persists population extraction results to the database.
+     * @param result ACS population extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet PopulationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists income extraction results to the database.
+     * @param result ACS income extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet IncomeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists housing extraction results to the database.
+     * @param result ACS housing extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet HousingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists education extraction results to the database.
+     * @param result ACS education extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet EducationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists commuting extraction results to the database.
+     * @param result ACS commuting extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet CommutingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists tenure extraction results to the database.
+     * @param result ACS tenure extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet TenureToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists household extraction results to the database.
+     * @param result ACS household extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet HouseholdsToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists age distribution extraction results to the database.
+     * @param result ACS age extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet AgeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists vehicle availability extraction results to the database.
+     * @param result ACS vehicle extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet VehiclesToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists racial composition extraction results to the database.
+     * @param result ACS race extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet RaceToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists poverty status extraction results to the database.
+     * @param result ACS poverty extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet PovertyToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists employment extraction results to the database.
+     * @param result ACS employment extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet EmploymentToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists TIGER county boundary extraction results to the database.
+     * @param result TIGER county extraction output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet CountiesToDB(result: TIGERResult, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists the joined ACS+TIGER geographic dataset to the database.
+     * @param result Joined census summary output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet JoinedToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)
+
+    /**
+     * Persists the aggregated state summary to the database.
+     * @param result State census summary output
+     * @param state_fips FIPS code identifying the state
+     * @returns ingestion Import confirmation with record count
+     */
+    event facet SummaryToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)
+}

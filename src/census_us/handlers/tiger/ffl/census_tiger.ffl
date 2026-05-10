@@ -1,0 +1,36 @@
+/** Extraction facets for TIGER/Line geographic boundary shapefiles. */
+namespace census.TIGER {
+    use census.types
+
+    /**
+     * Extracts county boundaries from a TIGER/Line shapefile.
+     * @param file Downloaded TIGER shapefile
+     * @param state_fips FIPS code identifying the state
+     * @returns result County boundary features with metadata
+     */
+    event facet ExtractCounties(file: CensusFile, state_fips: String) => (result: TIGERResult)
+
+    /**
+     * Extracts census tract boundaries from a TIGER/Line shapefile.
+     * @param file Downloaded TIGER shapefile
+     * @param state_fips FIPS code identifying the state
+     * @returns result Tract boundary features with metadata
+     */
+    event facet ExtractTracts(file: CensusFile, state_fips: String) => (result: TIGERResult)
+
+    /**
+     * Extracts block group boundaries from a TIGER/Line shapefile.
+     * @param file Downloaded TIGER shapefile
+     * @param state_fips FIPS code identifying the state
+     * @returns result Block group boundary features with metadata
+     */
+    event facet ExtractBlockGroups(file: CensusFile, state_fips: String) => (result: TIGERResult)
+
+    /**
+     * Extracts incorporated place boundaries from a TIGER/Line shapefile.
+     * @param file Downloaded TIGER shapefile
+     * @param state_fips FIPS code identifying the state
+     * @returns result Place boundary features with metadata
+     */
+    event facet ExtractPlaces(file: CensusFile, state_fips: String) => (result: TIGERResult)
+}

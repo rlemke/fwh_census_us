@@ -1,0 +1,54 @@
+/** Shared data types for the US Census pipeline. */
+namespace census.types {
+    /** A downloaded Census data file with metadata about its origin and cache status. */
+    schema CensusFile {
+        url: String, path: String, date: String,
+        size: Long, wasInCache: Boolean
+    }
+    /** Extraction result from an ACS table, including output location and record metadata. */
+    schema ACSResult {
+        table_id: String, output_path: String, record_count: Long,
+        geography_level: String, year: String, extraction_date: String
+    }
+    /** Extraction result from a TIGER/Line shapefile with feature count and format info. */
+    schema TIGERResult {
+        output_path: String, feature_count: Long,
+        geography_level: String, year: String, format: String,
+        extraction_date: String
+    }
+    /** Aggregated state-level census summary with joined table counts. */
+    schema CensusSummary {
+        state_fips: String, state_name: String, output_path: String,
+        tables_joined: Long, record_count: Long
+    }
+}
+
+/** Download operations for fetching raw Census Bureau data files. */
+namespace census.Operations {
+    use census.types
+
+    /**
+     * Downloads an ACS summary file for a given state, year, and estimate period.
+     * @param year ACS survey year
+     * @param period Estimate period (e.g. "5-Year")
+     * @param state_fips FIPS code identifying the state
+     * @returns file Downloaded ACS data file with cache metadata
+     */
+    event facet DownloadACS(year: String = "2023", period: String = "5-Year", state_fips: String) => (file: CensusFile)
+
+    /**
+     * Downloads TIGER/Line shapefiles for a state at the specified geography level.
+     * @param year TIGER vintage year
+     * @param geo_level Geography level (e.g. "COUNTY", "TRACT")
+     * @param state_fips FIPS code identifying the state
+     * @returns file Downloaded TIGER shapefile with cache metadata
+     */
+    event facet DownloadTIGER(year: String = "2024", geo_level: String = "COUNTY", state_fips: String) => (file: CensusFile)
+
+    /**
+     * Downloads detailed ACS microdata tables for a state.
+     * @param state_fips FIPS code identifying the state
+     * @returns file Downloaded detailed ACS file with cache metadata
+     */
+    event facet DownloadACSDetailed(state_fips: String) => (file: CensusFile)
+}

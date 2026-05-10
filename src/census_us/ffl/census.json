@@ -1,0 +1,3372 @@
+{
+  "type": "Program",
+  "declarations": [
+    {
+      "type": "Namespace",
+      "name": "census.workflows",
+      "uses": [
+        "census.types",
+        "census.Operations",
+        "census.ACS",
+        "census.TIGER",
+        "census.Summary",
+        "census.Ingestion"
+      ],
+      "declarations": [
+        {
+          "type": "WorkflowDecl",
+          "name": "AnalyzeState",
+          "params": [
+            {
+              "name": "state_fips",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "01"
+              }
+            },
+            {
+              "name": "state_name",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "Alabama"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "summary",
+              "type": "CensusSummary"
+            }
+          ],
+          "body": {
+            "type": "AndThenBlock",
+            "steps": [
+              {
+                "type": "StepStmt",
+                "name": "acs",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadACS",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "e40962bf-bbcd-48e2-a3d0-01eeffe66201",
+                  "location": {
+                    "line": 10,
+                    "column": 15,
+                    "endLine": 10,
+                    "endColumn": 53
+                  }
+                },
+                "id": "58c5cbe9-faf2-4c45-8c56-28aa29782837",
+                "location": {
+                  "line": 10,
+                  "column": 9,
+                  "endLine": 10,
+                  "endColumn": 53
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "acs_detail",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadACSDetailed",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "c3f324e5-26ae-4689-aee7-a7abd0cd5172",
+                  "location": {
+                    "line": 11,
+                    "column": 22,
+                    "endLine": 11,
+                    "endColumn": 68
+                  }
+                },
+                "id": "cfb318e3-4ed9-4ec8-afb4-5656e4420403",
+                "location": {
+                  "line": 11,
+                  "column": 9,
+                  "endLine": 11,
+                  "endColumn": 68
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "tiger",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadTIGER",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "geo_level",
+                      "value": {
+                        "type": "String",
+                        "value": "COUNTY"
+                      }
+                    }
+                  ],
+                  "id": "aa2b1328-3daf-4ccd-a521-9da772e14c75",
+                  "location": {
+                    "line": 12,
+                    "column": 17,
+                    "endLine": 12,
+                    "endColumn": 79
+                  }
+                },
+                "id": "3c7e5053-2d59-465f-a10e-2054ba75e75f",
+                "location": {
+                  "line": 12,
+                  "column": 9,
+                  "endLine": 12,
+                  "endColumn": 79
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "pop",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractPopulation",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "e1663653-b719-4537-8067-f33416ed8817",
+                  "location": {
+                    "line": 13,
+                    "column": 15,
+                    "endLine": 13,
+                    "endColumn": 76
+                  }
+                },
+                "id": "7ce15de9-a544-48ce-ba6b-6d892392f1b8",
+                "location": {
+                  "line": 13,
+                  "column": 9,
+                  "endLine": 13,
+                  "endColumn": 76
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "income",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractIncome",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "256db154-8818-4042-a8ff-c6db2942e09b",
+                  "location": {
+                    "line": 14,
+                    "column": 18,
+                    "endLine": 14,
+                    "endColumn": 75
+                  }
+                },
+                "id": "edb01762-19ae-4fdc-a075-7586fdba5628",
+                "location": {
+                  "line": 14,
+                  "column": 9,
+                  "endLine": 14,
+                  "endColumn": 75
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "housing",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractHousing",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "018a2c93-629d-4e90-9677-388f2f80d9b5",
+                  "location": {
+                    "line": 15,
+                    "column": 19,
+                    "endLine": 15,
+                    "endColumn": 77
+                  }
+                },
+                "id": "fc203c83-9e7c-450c-9d58-8222da2b5d84",
+                "location": {
+                  "line": 15,
+                  "column": 9,
+                  "endLine": 15,
+                  "endColumn": 77
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "education",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractEducation",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "818197c5-e243-4a13-a2f8-3780c60ac443",
+                  "location": {
+                    "line": 16,
+                    "column": 21,
+                    "endLine": 16,
+                    "endColumn": 81
+                  }
+                },
+                "id": "2b3b311f-fc7f-4462-901e-e1a4f90d43de",
+                "location": {
+                  "line": 16,
+                  "column": 9,
+                  "endLine": 16,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "commuting",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractCommuting",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "c5f6fb05-3345-42ae-8520-f55ecdc5e7ad",
+                  "location": {
+                    "line": 17,
+                    "column": 21,
+                    "endLine": 17,
+                    "endColumn": 81
+                  }
+                },
+                "id": "3d672815-0f5c-4676-b68a-51b142700f37",
+                "location": {
+                  "line": 17,
+                  "column": 9,
+                  "endLine": 17,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "tenure",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractTenure",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "28daf6fa-e16a-4007-9a09-5fbf4e67e7f1",
+                  "location": {
+                    "line": 18,
+                    "column": 18,
+                    "endLine": 18,
+                    "endColumn": 75
+                  }
+                },
+                "id": "6d12735d-e1eb-48da-bef8-7cf5090c2fb2",
+                "location": {
+                  "line": 18,
+                  "column": 9,
+                  "endLine": 18,
+                  "endColumn": 75
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "households",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractHouseholds",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "74a9b426-0713-4e9a-b450-ea30720bea77",
+                  "location": {
+                    "line": 19,
+                    "column": 22,
+                    "endLine": 19,
+                    "endColumn": 83
+                  }
+                },
+                "id": "2a21c879-6c03-40a7-aaf0-bafd257ad95f",
+                "location": {
+                  "line": 19,
+                  "column": 9,
+                  "endLine": 19,
+                  "endColumn": 83
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "age",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractAge",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs_detail",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "90e7d9e0-db0f-42c1-9679-bd9619aa7e7a",
+                  "location": {
+                    "line": 20,
+                    "column": 15,
+                    "endLine": 20,
+                    "endColumn": 76
+                  }
+                },
+                "id": "5c3cf6e4-05d5-471d-b969-47b443dd443a",
+                "location": {
+                  "line": 20,
+                  "column": 9,
+                  "endLine": 20,
+                  "endColumn": 76
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "vehicles",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractVehicles",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "a93c963b-3f78-4ff1-bba1-056e9692166e",
+                  "location": {
+                    "line": 21,
+                    "column": 20,
+                    "endLine": 21,
+                    "endColumn": 79
+                  }
+                },
+                "id": "8aeadaaa-c68a-44fc-9c3c-428185240d42",
+                "location": {
+                  "line": 21,
+                  "column": 9,
+                  "endLine": 21,
+                  "endColumn": 79
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "counties",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractCounties",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "tiger",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "1110e29f-37a6-416c-8060-ab7ec6ba8414",
+                  "location": {
+                    "line": 22,
+                    "column": 20,
+                    "endLine": 22,
+                    "endColumn": 81
+                  }
+                },
+                "id": "fa7fb72c-05bc-4acf-8953-e34a1215a119",
+                "location": {
+                  "line": 22,
+                  "column": 9,
+                  "endLine": 22,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "joined",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "JoinGeo",
+                  "args": [
+                    {
+                      "name": "acs_path",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "pop",
+                          "result",
+                          "output_path"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "tiger_path",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "counties",
+                          "result",
+                          "output_path"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "8ec7b0df-2043-4248-bae7-4952832cf8c1",
+                  "location": {
+                    "line": 23,
+                    "column": 18,
+                    "endLine": 23,
+                    "endColumn": 102
+                  }
+                },
+                "id": "8804841a-5b30-40de-adf5-fcf919e4999a",
+                "location": {
+                  "line": 23,
+                  "column": 9,
+                  "endLine": 23,
+                  "endColumn": 102
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "summary",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "SummarizeState",
+                  "args": [
+                    {
+                      "name": "population",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "pop",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "income",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "income",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "housing",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "housing",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "education",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "education",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "commuting",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "commuting",
+                          "result"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "5ee18979-2a05-4882-be5b-4e15f18d0bdc",
+                  "location": {
+                    "line": 24,
+                    "column": 19,
+                    "endLine": 24,
+                    "endColumn": 168
+                  }
+                },
+                "id": "58be13ae-59dc-4545-9681-80990c8625be",
+                "location": {
+                  "line": 24,
+                  "column": 9,
+                  "endLine": 24,
+                  "endColumn": 168
+                }
+              }
+            ],
+            "yield": {
+              "type": "YieldStmt",
+              "call": {
+                "type": "CallExpr",
+                "target": "AnalyzeState",
+                "args": [
+                  {
+                    "name": "summary",
+                    "value": {
+                      "type": "StepRef",
+                      "path": [
+                        "summary",
+                        "result"
+                      ]
+                    }
+                  }
+                ],
+                "id": "c5df0713-4552-4f00-bc4e-5431efbe0374",
+                "location": {
+                  "line": 25,
+                  "column": 15,
+                  "endLine": 25,
+                  "endColumn": 53
+                }
+              },
+              "id": "47154223-4e34-45d5-ad79-09df2550e9ac",
+              "location": {
+                "line": 25,
+                "column": 9,
+                "endLine": 25,
+                "endColumn": 53
+              }
+            },
+            "id": "3b6d1d22-eca9-40d6-9018-f9e496def233",
+            "location": {
+              "line": 9,
+              "column": 114,
+              "endLine": 28,
+              "endColumn": 1
+            }
+          },
+          "id": "a28aed22-4774-4fb5-92d4-85f2c80f8139",
+          "location": {
+            "line": 9,
+            "column": 5,
+            "endLine": 28,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "WorkflowDecl",
+          "name": "AnalyzeStateWithDB",
+          "params": [
+            {
+              "name": "state_fips",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "01"
+              }
+            },
+            {
+              "name": "state_name",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "Alabama"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "summary",
+              "type": "CensusSummary"
+            }
+          ],
+          "body": {
+            "type": "AndThenBlock",
+            "steps": [
+              {
+                "type": "StepStmt",
+                "name": "acs",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadACS",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "64f5b8b7-1987-4ed2-83dc-84cc421d1007",
+                  "location": {
+                    "line": 29,
+                    "column": 15,
+                    "endLine": 29,
+                    "endColumn": 53
+                  }
+                },
+                "id": "668f5c0d-25c6-43c8-9320-5d6e97b7cf0f",
+                "location": {
+                  "line": 29,
+                  "column": 9,
+                  "endLine": 29,
+                  "endColumn": 53
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "acs_detail",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadACSDetailed",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "350ece68-52f7-4941-8211-affd75fb6989",
+                  "location": {
+                    "line": 30,
+                    "column": 22,
+                    "endLine": 30,
+                    "endColumn": 68
+                  }
+                },
+                "id": "3cf74c8b-69f9-4cac-b02f-6d476dc0cf9d",
+                "location": {
+                  "line": 30,
+                  "column": 9,
+                  "endLine": 30,
+                  "endColumn": 68
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "tiger",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "DownloadTIGER",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "geo_level",
+                      "value": {
+                        "type": "String",
+                        "value": "COUNTY"
+                      }
+                    }
+                  ],
+                  "id": "72c7a426-fe84-4544-b1a9-f03fdb2881c1",
+                  "location": {
+                    "line": 31,
+                    "column": 17,
+                    "endLine": 31,
+                    "endColumn": 79
+                  }
+                },
+                "id": "5c0e4046-d867-42b1-96e0-826225396993",
+                "location": {
+                  "line": 31,
+                  "column": 9,
+                  "endLine": 31,
+                  "endColumn": 79
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "pop",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractPopulation",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "fe2ba746-a993-4324-9bb5-3ded3c9d68a1",
+                  "location": {
+                    "line": 32,
+                    "column": 15,
+                    "endLine": 32,
+                    "endColumn": 76
+                  }
+                },
+                "id": "10656280-1674-4ab7-b708-300af911afaf",
+                "location": {
+                  "line": 32,
+                  "column": 9,
+                  "endLine": 32,
+                  "endColumn": 76
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "income",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractIncome",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "98120dd0-a333-4031-8257-ddb320604027",
+                  "location": {
+                    "line": 33,
+                    "column": 18,
+                    "endLine": 33,
+                    "endColumn": 75
+                  }
+                },
+                "id": "e8a1cbb0-6eee-431e-a627-9ccbb192183e",
+                "location": {
+                  "line": 33,
+                  "column": 9,
+                  "endLine": 33,
+                  "endColumn": 75
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "housing",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractHousing",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "064d11ab-2dda-40a6-8ddf-3f11e94120ab",
+                  "location": {
+                    "line": 34,
+                    "column": 19,
+                    "endLine": 34,
+                    "endColumn": 77
+                  }
+                },
+                "id": "fecff31c-dd67-416c-bf73-8d65f691e6f6",
+                "location": {
+                  "line": 34,
+                  "column": 9,
+                  "endLine": 34,
+                  "endColumn": 77
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "education",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractEducation",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "24dd42e7-9c30-4ba2-941a-a15c202b9af5",
+                  "location": {
+                    "line": 35,
+                    "column": 21,
+                    "endLine": 35,
+                    "endColumn": 81
+                  }
+                },
+                "id": "e1988d83-0c52-4177-93fe-212586577e27",
+                "location": {
+                  "line": 35,
+                  "column": 9,
+                  "endLine": 35,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "commuting",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractCommuting",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "b1fe0572-34d6-46ee-9c91-8468f6f90833",
+                  "location": {
+                    "line": 36,
+                    "column": 21,
+                    "endLine": 36,
+                    "endColumn": 81
+                  }
+                },
+                "id": "5289bc01-49e3-4274-8151-190a4e03dfd1",
+                "location": {
+                  "line": 36,
+                  "column": 9,
+                  "endLine": 36,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "tenure",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractTenure",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "a6b0338a-b07f-4bb1-b82b-02384cd786d3",
+                  "location": {
+                    "line": 37,
+                    "column": 18,
+                    "endLine": 37,
+                    "endColumn": 75
+                  }
+                },
+                "id": "ae83f9dc-01f8-46a2-8124-fb03b8ad9b6a",
+                "location": {
+                  "line": 37,
+                  "column": 9,
+                  "endLine": 37,
+                  "endColumn": 75
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "households",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractHouseholds",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "1bc93c63-7b81-46ca-94ef-fee383164ace",
+                  "location": {
+                    "line": 38,
+                    "column": 22,
+                    "endLine": 38,
+                    "endColumn": 83
+                  }
+                },
+                "id": "7ff73fd7-aee4-45a3-807a-05f3ef22b5ab",
+                "location": {
+                  "line": 38,
+                  "column": 9,
+                  "endLine": 38,
+                  "endColumn": 83
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "age",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractAge",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs_detail",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "c914be63-1f0b-4330-bd40-de6330e699bc",
+                  "location": {
+                    "line": 39,
+                    "column": 15,
+                    "endLine": 39,
+                    "endColumn": 76
+                  }
+                },
+                "id": "a36c6a80-d044-4543-a169-8a1fc20f703d",
+                "location": {
+                  "line": 39,
+                  "column": 9,
+                  "endLine": 39,
+                  "endColumn": 76
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "vehicles",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractVehicles",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "acs",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "47351d1a-210f-4290-954c-ea289337b442",
+                  "location": {
+                    "line": 40,
+                    "column": 20,
+                    "endLine": 40,
+                    "endColumn": 79
+                  }
+                },
+                "id": "a172eacf-0f61-4b02-93ec-5e81fe103dcc",
+                "location": {
+                  "line": 40,
+                  "column": 9,
+                  "endLine": 40,
+                  "endColumn": 79
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "counties",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "ExtractCounties",
+                  "args": [
+                    {
+                      "name": "file",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "tiger",
+                          "file"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "33afb252-8994-4960-a534-940a18f4da86",
+                  "location": {
+                    "line": 41,
+                    "column": 20,
+                    "endLine": 41,
+                    "endColumn": 81
+                  }
+                },
+                "id": "cf62723f-c87e-44b2-b2ac-3893df97b336",
+                "location": {
+                  "line": 41,
+                  "column": 9,
+                  "endLine": 41,
+                  "endColumn": 81
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "joined",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "JoinGeo",
+                  "args": [
+                    {
+                      "name": "acs_path",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "pop",
+                          "result",
+                          "output_path"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "tiger_path",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "counties",
+                          "result",
+                          "output_path"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "cff8358e-5be6-4e12-866e-941fd01864dd",
+                  "location": {
+                    "line": 42,
+                    "column": 18,
+                    "endLine": 42,
+                    "endColumn": 102
+                  }
+                },
+                "id": "47c18a66-02e0-41a1-ae3d-760818cd2f21",
+                "location": {
+                  "line": 42,
+                  "column": 9,
+                  "endLine": 42,
+                  "endColumn": 102
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "summary",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "SummarizeState",
+                  "args": [
+                    {
+                      "name": "population",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "pop",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "income",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "income",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "housing",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "housing",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "education",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "education",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "commuting",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "commuting",
+                          "result"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "c8e60e72-fff7-4c20-bc81-a6e3c202f784",
+                  "location": {
+                    "line": 43,
+                    "column": 19,
+                    "endLine": 43,
+                    "endColumn": 168
+                  }
+                },
+                "id": "345857f5-4540-4a9c-b925-882021da2ab4",
+                "location": {
+                  "line": 43,
+                  "column": 9,
+                  "endLine": 43,
+                  "endColumn": 168
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "pop_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "PopulationToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "pop",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "0491be59-d01f-414c-b384-3d4c2f42b254",
+                  "location": {
+                    "line": 44,
+                    "column": 18,
+                    "endLine": 44,
+                    "endColumn": 80
+                  }
+                },
+                "id": "41467ae4-0466-4611-9d44-b5f120a453ba",
+                "location": {
+                  "line": 44,
+                  "column": 9,
+                  "endLine": 44,
+                  "endColumn": 80
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "income_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "IncomeToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "income",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "105d1186-9d58-4743-906c-2bd180227c99",
+                  "location": {
+                    "line": 45,
+                    "column": 21,
+                    "endLine": 45,
+                    "endColumn": 82
+                  }
+                },
+                "id": "a56571ff-5fc0-464e-bd8f-7937c58b62e0",
+                "location": {
+                  "line": 45,
+                  "column": 9,
+                  "endLine": 45,
+                  "endColumn": 82
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "housing_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "HousingToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "housing",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "71ade4bc-47f7-4d37-bbbc-68599b3cda19",
+                  "location": {
+                    "line": 46,
+                    "column": 22,
+                    "endLine": 46,
+                    "endColumn": 85
+                  }
+                },
+                "id": "18fc1068-f882-405c-a5d2-9b81f694c608",
+                "location": {
+                  "line": 46,
+                  "column": 9,
+                  "endLine": 46,
+                  "endColumn": 85
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "education_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "EducationToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "education",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "b182faeb-8f66-4fe7-97a7-427a67ce5126",
+                  "location": {
+                    "line": 47,
+                    "column": 24,
+                    "endLine": 47,
+                    "endColumn": 91
+                  }
+                },
+                "id": "837fa621-b9db-438c-a1cd-018a3f64582d",
+                "location": {
+                  "line": 47,
+                  "column": 9,
+                  "endLine": 47,
+                  "endColumn": 91
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "commuting_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "CommutingToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "commuting",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "4322aec6-eab5-48e7-98a8-b68cbacccd3c",
+                  "location": {
+                    "line": 48,
+                    "column": 24,
+                    "endLine": 48,
+                    "endColumn": 91
+                  }
+                },
+                "id": "8746f7a6-6819-4ea7-8aa3-ed58ffd034c9",
+                "location": {
+                  "line": 48,
+                  "column": 9,
+                  "endLine": 48,
+                  "endColumn": 91
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "tenure_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "TenureToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "tenure",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "c19a3277-ecd9-47cb-aeae-202ca2f29191",
+                  "location": {
+                    "line": 49,
+                    "column": 21,
+                    "endLine": 49,
+                    "endColumn": 82
+                  }
+                },
+                "id": "c17275dc-d4c9-43b0-a7c6-ec2ea90430b5",
+                "location": {
+                  "line": 49,
+                  "column": 9,
+                  "endLine": 49,
+                  "endColumn": 82
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "households_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "HouseholdsToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "households",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "30bb15f8-1c87-4d41-86b8-9fa9c0d522ef",
+                  "location": {
+                    "line": 50,
+                    "column": 25,
+                    "endLine": 50,
+                    "endColumn": 94
+                  }
+                },
+                "id": "cc67d58c-b07e-4a4f-9957-2f3e3260d971",
+                "location": {
+                  "line": 50,
+                  "column": 9,
+                  "endLine": 50,
+                  "endColumn": 94
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "age_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "AgeToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "age",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "fc78db56-7f63-4979-bedd-8989e2938e4d",
+                  "location": {
+                    "line": 51,
+                    "column": 18,
+                    "endLine": 51,
+                    "endColumn": 73
+                  }
+                },
+                "id": "eee5a82a-9188-4fba-9b69-0700ea309ea7",
+                "location": {
+                  "line": 51,
+                  "column": 9,
+                  "endLine": 51,
+                  "endColumn": 73
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "vehicles_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "VehiclesToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "vehicles",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "3a09879b-dedf-4b5d-a2fc-9e53ab0ab18e",
+                  "location": {
+                    "line": 52,
+                    "column": 23,
+                    "endLine": 52,
+                    "endColumn": 88
+                  }
+                },
+                "id": "d6c30ac2-9972-45c8-bf30-39f4f65d8380",
+                "location": {
+                  "line": 52,
+                  "column": 9,
+                  "endLine": 52,
+                  "endColumn": 88
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "counties_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "CountiesToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "counties",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "287b8ddc-df97-4fe0-83ed-0c066dda69cb",
+                  "location": {
+                    "line": 53,
+                    "column": 23,
+                    "endLine": 53,
+                    "endColumn": 88
+                  }
+                },
+                "id": "db35257c-c4dd-4438-a2c9-30ca7f305436",
+                "location": {
+                  "line": 53,
+                  "column": 9,
+                  "endLine": 53,
+                  "endColumn": 88
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "joined_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "JoinedToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "joined",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "1485e65e-861b-4cc7-8770-6c8da3f7b64e",
+                  "location": {
+                    "line": 54,
+                    "column": 21,
+                    "endLine": 54,
+                    "endColumn": 82
+                  }
+                },
+                "id": "962247ed-51f9-4c7e-bf9b-947b5678922d",
+                "location": {
+                  "line": 54,
+                  "column": 9,
+                  "endLine": 54,
+                  "endColumn": 82
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "summary_db",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "SummaryToDB",
+                  "args": [
+                    {
+                      "name": "result",
+                      "value": {
+                        "type": "StepRef",
+                        "path": [
+                          "summary",
+                          "result"
+                        ]
+                      }
+                    },
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "InputRef",
+                        "path": [
+                          "state_fips"
+                        ]
+                      }
+                    }
+                  ],
+                  "id": "86c8016d-6741-404c-b298-9632c34b7a47",
+                  "location": {
+                    "line": 55,
+                    "column": 22,
+                    "endLine": 55,
+                    "endColumn": 85
+                  }
+                },
+                "id": "875c17d4-36c8-494e-9465-faff8a1389e4",
+                "location": {
+                  "line": 55,
+                  "column": 9,
+                  "endLine": 55,
+                  "endColumn": 85
+                }
+              }
+            ],
+            "yield": {
+              "type": "YieldStmt",
+              "call": {
+                "type": "CallExpr",
+                "target": "AnalyzeStateWithDB",
+                "args": [
+                  {
+                    "name": "summary",
+                    "value": {
+                      "type": "StepRef",
+                      "path": [
+                        "summary",
+                        "result"
+                      ]
+                    }
+                  }
+                ],
+                "id": "eca342a8-613b-4403-a604-b22025bd1457",
+                "location": {
+                  "line": 56,
+                  "column": 15,
+                  "endLine": 56,
+                  "endColumn": 59
+                }
+              },
+              "id": "27b745fa-1b3d-4e71-9630-e9182acd4e12",
+              "location": {
+                "line": 56,
+                "column": 9,
+                "endLine": 56,
+                "endColumn": 59
+              }
+            },
+            "id": "26ef25c5-3a50-47d7-9936-c907bd3dfc9d",
+            "location": {
+              "line": 28,
+              "column": 120,
+              "endLine": 59,
+              "endColumn": 1
+            }
+          },
+          "id": "7b467570-3d6a-4039-b3ca-78fdf2afe170",
+          "location": {
+            "line": 28,
+            "column": 5,
+            "endLine": 59,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "WorkflowDecl",
+          "name": "AnalyzeStates_03",
+          "returns": [
+            {
+              "name": "states_completed",
+              "type": "Long"
+            }
+          ],
+          "body": {
+            "type": "AndThenBlock",
+            "steps": [
+              {
+                "type": "StepStmt",
+                "name": "alabama",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "AnalyzeState",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "String",
+                        "value": "01"
+                      }
+                    },
+                    {
+                      "name": "state_name",
+                      "value": {
+                        "type": "String",
+                        "value": "Alabama"
+                      }
+                    }
+                  ],
+                  "id": "5bf51deb-2606-4805-a449-1d861411f9e9",
+                  "location": {
+                    "line": 60,
+                    "column": 19,
+                    "endLine": 60,
+                    "endColumn": 74
+                  }
+                },
+                "id": "65e11c2f-c2ce-467b-b3b5-6bd0325af475",
+                "location": {
+                  "line": 60,
+                  "column": 9,
+                  "endLine": 60,
+                  "endColumn": 74
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "alaska",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "AnalyzeState",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "String",
+                        "value": "02"
+                      }
+                    },
+                    {
+                      "name": "state_name",
+                      "value": {
+                        "type": "String",
+                        "value": "Alaska"
+                      }
+                    }
+                  ],
+                  "id": "a7147d9d-a981-4735-9995-63094cf49103",
+                  "location": {
+                    "line": 61,
+                    "column": 18,
+                    "endLine": 61,
+                    "endColumn": 72
+                  }
+                },
+                "id": "9a5e8097-cc8f-47ee-b862-22bdac8b74bf",
+                "location": {
+                  "line": 61,
+                  "column": 9,
+                  "endLine": 61,
+                  "endColumn": 72
+                }
+              },
+              {
+                "type": "StepStmt",
+                "name": "arizona",
+                "call": {
+                  "type": "CallExpr",
+                  "target": "AnalyzeState",
+                  "args": [
+                    {
+                      "name": "state_fips",
+                      "value": {
+                        "type": "String",
+                        "value": "04"
+                      }
+                    },
+                    {
+                      "name": "state_name",
+                      "value": {
+                        "type": "String",
+                        "value": "Arizona"
+                      }
+                    }
+                  ],
+                  "id": "49887286-304c-4020-928c-b1733490ba23",
+                  "location": {
+                    "line": 62,
+                    "column": 19,
+                    "endLine": 62,
+                    "endColumn": 74
+                  }
+                },
+                "id": "7642aac9-1e69-4478-90f0-f8bfce65531b",
+                "location": {
+                  "line": 62,
+                  "column": 9,
+                  "endLine": 62,
+                  "endColumn": 74
+                }
+              }
+            ],
+            "yield": {
+              "type": "YieldStmt",
+              "call": {
+                "type": "CallExpr",
+                "target": "AnalyzeStates_03",
+                "args": [
+                  {
+                    "name": "states_completed",
+                    "value": {
+                      "type": "Int",
+                      "value": 3
+                    }
+                  }
+                ],
+                "id": "d44bff9e-92af-47fd-9dd0-68b62330ddb7",
+                "location": {
+                  "line": 63,
+                  "column": 15,
+                  "endLine": 63,
+                  "endColumn": 53
+                }
+              },
+              "id": "b45414b9-2c88-4dd8-b8e5-452a501a45ec",
+              "location": {
+                "line": 63,
+                "column": 9,
+                "endLine": 63,
+                "endColumn": 53
+              }
+            },
+            "id": "070571c6-d356-4912-af86-0fde523cf93d",
+            "location": {
+              "line": 59,
+              "column": 61,
+              "endLine": 65,
+              "endColumn": 1
+            }
+          },
+          "id": "90f01247-0de6-4566-8208-a70a2fb20c08",
+          "location": {
+            "line": 59,
+            "column": 5,
+            "endLine": 65,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "5fe66d5a-4ea4-426a-9161-a22409daa4b7",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 66,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.Ingestion",
+      "uses": [
+        "census.types"
+      ],
+      "declarations": [
+        {
+          "type": "EventFacetDecl",
+          "name": "PopulationToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "75277939-772b-4622-9926-57b5fb4839a1",
+          "location": {
+            "line": 11,
+            "column": 5,
+            "endLine": 13,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "IncomeToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "75407296-d7ec-4ffd-9a9d-0d8a8baacf10",
+          "location": {
+            "line": 13,
+            "column": 5,
+            "endLine": 15,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "HousingToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "1889f331-2ac5-40d3-bc5c-2c5bd1186101",
+          "location": {
+            "line": 15,
+            "column": 5,
+            "endLine": 17,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "EducationToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "28e5b8e4-0c92-4791-81dd-c2b476e0cf95",
+          "location": {
+            "line": 17,
+            "column": 5,
+            "endLine": 19,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "CommutingToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "5680d4ca-bc20-4d98-9714-ecf006688442",
+          "location": {
+            "line": 19,
+            "column": 5,
+            "endLine": 21,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "TenureToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "253de2a9-4cfa-4f5d-81ad-4808d0e82b9d",
+          "location": {
+            "line": 21,
+            "column": 5,
+            "endLine": 23,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "HouseholdsToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "b40fdde7-e513-47f1-8f37-10c4b3c9c153",
+          "location": {
+            "line": 23,
+            "column": 5,
+            "endLine": 25,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "AgeToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "7653d551-a58a-428c-8945-d45c8a8b05bd",
+          "location": {
+            "line": 25,
+            "column": 5,
+            "endLine": 27,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "VehiclesToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "d93854f7-0bab-4731-9806-e03c6824f0e6",
+          "location": {
+            "line": 27,
+            "column": 5,
+            "endLine": 29,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "CountiesToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "TIGERResult"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "b1034335-85f8-48ad-b932-d00f991de9f9",
+          "location": {
+            "line": 29,
+            "column": 5,
+            "endLine": 31,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "JoinedToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "CensusSummary"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "e3990f4c-2782-480a-a91f-6afc88a777df",
+          "location": {
+            "line": 31,
+            "column": 5,
+            "endLine": 33,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "SummaryToDB",
+          "params": [
+            {
+              "name": "result",
+              "type": "CensusSummary"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "ingestion",
+              "type": "IngestionResult"
+            }
+          ],
+          "id": "e0b03b29-461b-4053-a4f5-6ce6565846dd",
+          "location": {
+            "line": 33,
+            "column": 5,
+            "endLine": 34,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "SchemaDecl",
+          "name": "IngestionResult",
+          "fields": [
+            {
+              "name": "dataset_key",
+              "type": "String"
+            },
+            {
+              "name": "record_count",
+              "type": "Long"
+            },
+            {
+              "name": "data_type",
+              "type": "String"
+            },
+            {
+              "name": "imported_at",
+              "type": "String"
+            }
+          ],
+          "id": "0f4f0c83-9254-4be2-92f8-3147f64d676c",
+          "location": {
+            "line": 4,
+            "column": 5,
+            "endLine": 11,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "b8095b81-82bd-44db-838c-a77132e92775",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 35,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.Summary",
+      "uses": [
+        "census.types"
+      ],
+      "declarations": [
+        {
+          "type": "EventFacetDecl",
+          "name": "JoinGeo",
+          "params": [
+            {
+              "name": "acs_path",
+              "type": "String"
+            },
+            {
+              "name": "tiger_path",
+              "type": "String"
+            },
+            {
+              "name": "join_field",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "GEOID"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "CensusSummary"
+            }
+          ],
+          "id": "f888b1e3-f4df-4e7a-a343-9a7c4964bfd5",
+          "location": {
+            "line": 4,
+            "column": 5,
+            "endLine": 6,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "SummarizeState",
+          "params": [
+            {
+              "name": "population",
+              "type": "ACSResult"
+            },
+            {
+              "name": "income",
+              "type": "ACSResult"
+            },
+            {
+              "name": "housing",
+              "type": "ACSResult"
+            },
+            {
+              "name": "education",
+              "type": "ACSResult"
+            },
+            {
+              "name": "commuting",
+              "type": "ACSResult"
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "CensusSummary"
+            }
+          ],
+          "id": "4826bddb-0247-4c2a-8693-4e96a013a19f",
+          "location": {
+            "line": 6,
+            "column": 5,
+            "endLine": 7,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "31c4e257-a671-4042-b55d-87295df5c0ba",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 8,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.types",
+      "declarations": [
+        {
+          "type": "SchemaDecl",
+          "name": "CensusFile",
+          "fields": [
+            {
+              "name": "url",
+              "type": "String"
+            },
+            {
+              "name": "path",
+              "type": "String"
+            },
+            {
+              "name": "date",
+              "type": "String"
+            },
+            {
+              "name": "size",
+              "type": "Long"
+            },
+            {
+              "name": "wasInCache",
+              "type": "Boolean"
+            }
+          ],
+          "id": "e6770c82-ef26-4e84-9905-602544dbdca8",
+          "location": {
+            "line": 2,
+            "column": 5,
+            "endLine": 6,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "SchemaDecl",
+          "name": "ACSResult",
+          "fields": [
+            {
+              "name": "table_id",
+              "type": "String"
+            },
+            {
+              "name": "output_path",
+              "type": "String"
+            },
+            {
+              "name": "record_count",
+              "type": "Long"
+            },
+            {
+              "name": "geography_level",
+              "type": "String"
+            },
+            {
+              "name": "year",
+              "type": "String"
+            },
+            {
+              "name": "extraction_date",
+              "type": "String"
+            }
+          ],
+          "id": "c1e2f133-13f1-43c2-b023-86c86916ab6e",
+          "location": {
+            "line": 6,
+            "column": 5,
+            "endLine": 10,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "SchemaDecl",
+          "name": "TIGERResult",
+          "fields": [
+            {
+              "name": "output_path",
+              "type": "String"
+            },
+            {
+              "name": "feature_count",
+              "type": "Long"
+            },
+            {
+              "name": "geography_level",
+              "type": "String"
+            },
+            {
+              "name": "year",
+              "type": "String"
+            },
+            {
+              "name": "format",
+              "type": "String"
+            },
+            {
+              "name": "extraction_date",
+              "type": "String"
+            }
+          ],
+          "id": "db4d062c-0583-42a2-a875-2ddde2aa4947",
+          "location": {
+            "line": 10,
+            "column": 5,
+            "endLine": 15,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "SchemaDecl",
+          "name": "CensusSummary",
+          "fields": [
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "state_name",
+              "type": "String"
+            },
+            {
+              "name": "output_path",
+              "type": "String"
+            },
+            {
+              "name": "tables_joined",
+              "type": "Long"
+            },
+            {
+              "name": "record_count",
+              "type": "Long"
+            }
+          ],
+          "id": "259e8c5f-ea9a-4a17-b6f1-94496dde40a7",
+          "location": {
+            "line": 15,
+            "column": 5,
+            "endLine": 19,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "503ea737-46c9-4cc5-bb99-6f7a7687b4b8",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 21,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.Operations",
+      "uses": [
+        "census.types"
+      ],
+      "declarations": [
+        {
+          "type": "EventFacetDecl",
+          "name": "DownloadACS",
+          "params": [
+            {
+              "name": "year",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "2023"
+              }
+            },
+            {
+              "name": "period",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "5-Year"
+              }
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            }
+          ],
+          "id": "6156eb27-5331-41c3-85c5-7e1e2c85664a",
+          "location": {
+            "line": 24,
+            "column": 5,
+            "endLine": 26,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "DownloadTIGER",
+          "params": [
+            {
+              "name": "year",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "2024"
+              }
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "COUNTY"
+              }
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            }
+          ],
+          "id": "e6c91a35-c398-4d3a-b0e1-d9029527730b",
+          "location": {
+            "line": 26,
+            "column": 5,
+            "endLine": 28,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "DownloadACSDetailed",
+          "params": [
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            }
+          ],
+          "id": "85f03390-5905-4916-a5da-f0058c88b774",
+          "location": {
+            "line": 28,
+            "column": 5,
+            "endLine": 29,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "511a4f01-4fd4-4c68-94bf-80ee9ef67325",
+      "location": {
+        "line": 21,
+        "column": 1,
+        "endLine": 30,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.ACS",
+      "uses": [
+        "census.types"
+      ],
+      "declarations": [
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractPopulation",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "95fbe4b9-3019-4b28-8551-8adc0c402ba9",
+          "location": {
+            "line": 4,
+            "column": 5,
+            "endLine": 6,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractIncome",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "16891a68-a831-4992-a5b0-95a915c22868",
+          "location": {
+            "line": 6,
+            "column": 5,
+            "endLine": 8,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractHousing",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "4d8ecb72-414d-48b3-8d77-92defb4682c7",
+          "location": {
+            "line": 8,
+            "column": 5,
+            "endLine": 10,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractEducation",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "59ce74db-7dc0-4d20-8301-b4afb056675e",
+          "location": {
+            "line": 10,
+            "column": 5,
+            "endLine": 12,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractCommuting",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "fe91a1d4-f499-41e7-93eb-890c0584a0f7",
+          "location": {
+            "line": 12,
+            "column": 5,
+            "endLine": 14,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractTenure",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "d3b55158-4a14-4a64-97c5-90acc8c1e885",
+          "location": {
+            "line": 14,
+            "column": 5,
+            "endLine": 16,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractHouseholds",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "1d98212e-36be-4068-8c8d-cca1b59e9d64",
+          "location": {
+            "line": 16,
+            "column": 5,
+            "endLine": 18,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractAge",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "78f6bf23-5a34-425f-b869-cf60feb24262",
+          "location": {
+            "line": 18,
+            "column": 5,
+            "endLine": 20,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractVehicles",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            },
+            {
+              "name": "geo_level",
+              "type": "String",
+              "default": {
+                "type": "String",
+                "value": "county"
+              }
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "ACSResult"
+            }
+          ],
+          "id": "45d68cef-0beb-4a8d-ac03-f282c735a299",
+          "location": {
+            "line": 20,
+            "column": 5,
+            "endLine": 21,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "38a8c68d-eb93-491f-ba6c-402cf2a50bb3",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 22,
+        "endColumn": 1
+      }
+    },
+    {
+      "type": "Namespace",
+      "name": "census.TIGER",
+      "uses": [
+        "census.types"
+      ],
+      "declarations": [
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractCounties",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "TIGERResult"
+            }
+          ],
+          "id": "a1d9185c-288e-4c39-86c9-ea5d964abaa7",
+          "location": {
+            "line": 4,
+            "column": 5,
+            "endLine": 6,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractTracts",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "TIGERResult"
+            }
+          ],
+          "id": "64157f39-7288-4e3b-84d4-bdecf59c0254",
+          "location": {
+            "line": 6,
+            "column": 5,
+            "endLine": 8,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractBlockGroups",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "TIGERResult"
+            }
+          ],
+          "id": "36f97502-988a-4c7b-a721-50a34c3bdcef",
+          "location": {
+            "line": 8,
+            "column": 5,
+            "endLine": 10,
+            "endColumn": 1
+          }
+        },
+        {
+          "type": "EventFacetDecl",
+          "name": "ExtractPlaces",
+          "params": [
+            {
+              "name": "file",
+              "type": "CensusFile"
+            },
+            {
+              "name": "state_fips",
+              "type": "String"
+            }
+          ],
+          "returns": [
+            {
+              "name": "result",
+              "type": "TIGERResult"
+            }
+          ],
+          "id": "c5240d7e-66d9-47ac-86eb-cd4136db1633",
+          "location": {
+            "line": 10,
+            "column": 5,
+            "endLine": 11,
+            "endColumn": 1
+          }
+        }
+      ],
+      "id": "085f5409-efe9-4ac3-8335-05a6bc37a352",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "endLine": 12,
+        "endColumn": 1
+      }
+    }
+  ],
+  "id": "fdad29d0-d1b8-490d-97fe-d65ea32eb922"
+}

@@ -1,0 +1,4 @@
+requests>=2.28
+fiona>=1.9
+shapely>=2.0
+pyshp>=2.3

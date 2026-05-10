@@ -1,0 +1,28 @@
+/** Summary and join operations that combine ACS and TIGER extractions. */
+namespace census.Summary {
+    use census.types
+
+    /**
+     * Joins ACS tabular data with TIGER geographic features on a shared key.
+     * @param acs_path Path to primary ACS extraction output
+     * @param tiger_path Path to TIGER boundary extraction output
+     * @param join_field Field name used to join ACS and TIGER records
+     * @param extra_acs_paths Additional ACS extraction outputs to include in the join
+     * @returns result Joined geographic census summary
+     */
+    event facet JoinGeo(acs_path: String, tiger_path: String, join_field: String = "GEOID", extra_acs_paths: [String] = []) => (result: CensusSummary)
+
+    /**
+     * Aggregates multiple ACS extraction results into a single state-level summary.
+     * @param population Population extraction result
+     * @param income Income extraction result
+     * @param housing Housing extraction result
+     * @param education Education extraction result
+     * @param commuting Commuting extraction result
+     * @param race Race extraction result (optional)
+     * @param poverty Poverty extraction result (optional)
+     * @param employment Employment extraction result (optional)
+     * @returns result Aggregated state census summary
+     */
+    event facet SummarizeState(population: ACSResult, income: ACSResult, housing: ACSResult, education: ACSResult, commuting: ACSResult, race: ACSResult = null, poverty: ACSResult = null, employment: ACSResult = null) => (result: CensusSummary)
+}
