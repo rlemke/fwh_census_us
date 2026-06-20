@@ -34,8 +34,8 @@ shapefiles = [
 [project.urls]
 Repository = "https://github.com/rlemke/fwh_census_us"
 
-[project.entry-points."facetwork.examples"]
-census-us = "census_us:example"
+[project.entry-points."facetwork.domains"]
+census-us = "census_us:domain"
 
 [tool.setuptools.packages.find]
 where = ["src"]
