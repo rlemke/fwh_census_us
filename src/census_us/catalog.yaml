@@ -1,0 +1,247 @@
+# Composability manifest for the census-us package.
+#
+# Machine-readable index so an LLM can DISCOVER + REUSE these capabilities by
+# intent, the same way the platform's `fw_catalog_match` (workflow-level,
+# reuse-first) and `fw_capabilities` (facet-level capability index) tools work.
+#
+#   * `workflows` — entry-point workflows, each with a natural-language `summary`
+#     (the kind of request it answers), `tags`, and a `param_schema` of the key
+#     parameters. Match an NL request against the summaries/tags before
+#     authoring anything new.
+#   * `facets` — a capability index of the core composable primitives by
+#     namespace, with `purpose`, `signature`, and the `effect`/`cost` taken
+#     verbatim from the `with Effect(...) / with Cost(...)` mixins in the FFL.
+#
+# Accurate qualified names + signatures are sourced from the .ffl; see
+# `census_us.catalog.load_manifest()`.
+
+version: 1
+package: census-us
+
+workflows:
+  - qualified_name: census.workflows.AnalyzeState
+    summary: >-
+      Analyze one US state end to end: download its ACS demographics + TIGER
+      county boundaries, extract every indicator (population, income, housing,
+      education, commuting, tenure, vehicles, race, poverty, employment, age),
+      join geography, and produce a single state-level summary. The preferred
+      entry point for "give me a demographic profile / census summary of
+      <state>".
+    tags: [census, demographics, acs, tiger, state, summary, profile]
+    entry_point: true
+    param_schema:
+      state_fips: String
+      state_name: String
+
+  - qualified_name: census.workflows.AnalyzeStateWithDB
+    summary: >-
+      Same as AnalyzeState but also persists every extracted dataset and the
+      joined summary to MongoDB. Use when the result must be queryable later /
+      stored, not just returned.
+    tags: [census, demographics, acs, tiger, state, summary, ingestion, mongodb, persist]
+    entry_point: true
+    param_schema:
+      state_fips: String
+      state_name: String
+
+  - qualified_name: census.workflows.AnalyzeStates_03
+    summary: >-
+      Fan-out demo: run AnalyzeState in parallel for three states (Alabama,
+      Alaska, Arizona) and report the count completed. A template for
+      multi-state parallel analysis.
+    tags: [census, demographics, multi-state, fanout, parallel, demo]
+    entry_point: true
+    param_schema: {}
+
+facets:
+  # --- census.Vocab : NL indicator -> ACS variable (semantic discovery) -------
+  - qualified_name: census.Vocab.ResolveVariable
+    namespace: census.Vocab
+    purpose: >-
+      Resolve a natural-language indicator (e.g. "median income", "poverty
+      rate") to its ACS table_id + estimate column codes (e.g. B19013 /
+      B19013_001E), with confidence and ranked alternatives. The NL->variable
+      step that lets a composer pick the right census.ACS extraction facet.
+    signature: "ResolveVariable(term: String) => (result: ACSVariable)"
+    effect: pure
+    cost: free
+
+  - qualified_name: census.Vocab.ListVariables
+    namespace: census.Vocab
+    purpose: List every ACS table the vocabulary covers as a JSON array of {table_id, label, columns}.
+    signature: "ListVariables() => (variables: Json, count: Long)"
+    effect: pure
+    cost: free
+
+  # --- census.Operations : raw downloads (Census API / TIGER) -----------------
+  - qualified_name: census.Operations.DownloadACS
+    namespace: census.Operations
+    purpose: Download (or return cached) ACS summary file for a state, year, and estimate period from the Census API.
+    signature: "DownloadACS(year: String = \"2023\", period: String = \"5-Year\", state_fips: String) => (file: CensusFile)"
+    effect: external
+    cost: moderate
+
+  - qualified_name: census.Operations.DownloadTIGER
+    namespace: census.Operations
+    purpose: Download (or return cached) TIGER/Line shapefiles for a state at a geography level (COUNTY/TRACT/...).
+    signature: "DownloadTIGER(year: String = \"2024\", geo_level: String = \"COUNTY\", state_fips: String) => (file: CensusFile)"
+    effect: external
+    cost: moderate
+
+  - qualified_name: census.Operations.DownloadACSDetailed
+    namespace: census.Operations
+    purpose: Download (or return cached) detailed ACS microdata tables for a state (e.g. sex-by-age).
+    signature: "DownloadACSDetailed(state_fips: String) => (file: CensusFile)"
+    effect: external
+    cost: moderate
+
+  # --- census.ACS : indicator extraction (local cached CSV) -------------------
+  - qualified_name: census.ACS.ExtractPopulation
+    namespace: census.ACS
+    purpose: Extract total population (ACS B01003) from a downloaded ACS file by geography.
+    signature: "ExtractPopulation(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractIncome
+    namespace: census.ACS
+    purpose: Extract median household income (ACS B19013) from a downloaded ACS file.
+    signature: "ExtractIncome(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractHousing
+    namespace: census.ACS
+    purpose: Extract housing-unit characteristics (ACS B25001) from a downloaded ACS file.
+    signature: "ExtractHousing(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractEducation
+    namespace: census.ACS
+    purpose: Extract educational attainment (ACS B15003) from a downloaded ACS file.
+    signature: "ExtractEducation(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractCommuting
+    namespace: census.ACS
+    purpose: Extract means-of-transportation / commuting data (ACS B08301) from a downloaded ACS file.
+    signature: "ExtractCommuting(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractTenure
+    namespace: census.ACS
+    purpose: Extract housing tenure (owner vs renter, ACS B25003) from a downloaded ACS file.
+    signature: "ExtractTenure(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractHouseholds
+    namespace: census.ACS
+    purpose: Extract household composition / type (ACS B11001) from a downloaded ACS file.
+    signature: "ExtractHouseholds(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractAge
+    namespace: census.ACS
+    purpose: Extract sex-by-age distribution (ACS B01001) from a detailed ACS file.
+    signature: "ExtractAge(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractVehicles
+    namespace: census.ACS
+    purpose: Extract vehicle-availability data (ACS B25044) from a downloaded ACS file.
+    signature: "ExtractVehicles(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractRace
+    namespace: census.ACS
+    purpose: Extract racial composition (ACS B02001) from a downloaded ACS file.
+    signature: "ExtractRace(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractPoverty
+    namespace: census.ACS
+    purpose: Extract poverty status (ACS B17001) from a downloaded ACS file.
+    signature: "ExtractPoverty(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.ACS.ExtractEmployment
+    namespace: census.ACS
+    purpose: Extract employment / labor-force data (ACS B23025) from a downloaded ACS file.
+    signature: "ExtractEmployment(file: CensusFile, state_fips: String, geo_level: String = \"county\") => (result: ACSResult)"
+    effect: io
+    cost: cheap
+
+  # --- census.TIGER : boundary extraction (local shapefile -> GeoJSON) --------
+  - qualified_name: census.TIGER.ExtractCounties
+    namespace: census.TIGER
+    purpose: Extract county boundaries from a downloaded TIGER/Line shapefile to GeoJSON.
+    signature: "ExtractCounties(file: CensusFile, state_fips: String) => (result: TIGERResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.TIGER.ExtractTracts
+    namespace: census.TIGER
+    purpose: Extract census tract boundaries from a downloaded TIGER/Line shapefile to GeoJSON.
+    signature: "ExtractTracts(file: CensusFile, state_fips: String) => (result: TIGERResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.TIGER.ExtractBlockGroups
+    namespace: census.TIGER
+    purpose: Extract block group boundaries from a downloaded TIGER/Line shapefile to GeoJSON.
+    signature: "ExtractBlockGroups(file: CensusFile, state_fips: String) => (result: TIGERResult)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.TIGER.ExtractPlaces
+    namespace: census.TIGER
+    purpose: Extract incorporated place boundaries from a downloaded TIGER/Line shapefile to GeoJSON.
+    signature: "ExtractPlaces(file: CensusFile, state_fips: String) => (result: TIGERResult)"
+    effect: io
+    cost: cheap
+
+  # --- census.Summary : join + aggregate --------------------------------------
+  - qualified_name: census.Summary.JoinGeo
+    namespace: census.Summary
+    purpose: Join ACS tabular extractions with TIGER geographic features on a shared key (default GEOID), writing a combined output.
+    signature: "JoinGeo(acs_path: String, tiger_path: String, join_field: String = \"GEOID\", extra_acs_paths: [String] = []) => (result: CensusSummary)"
+    effect: io
+    cost: cheap
+
+  - qualified_name: census.Summary.SummarizeState
+    namespace: census.Summary
+    purpose: Aggregate multiple ACS extraction results into a single state-level summary JSON (counts + per-table breakdown).
+    signature: "SummarizeState(population: ACSResult, income: ACSResult, housing: ACSResult, education: ACSResult, commuting: ACSResult, race: ACSResult = null, poverty: ACSResult = null, employment: ACSResult = null) => (result: CensusSummary)"
+    effect: io
+    cost: cheap
+
+  # --- census.Ingestion : persist to MongoDB ----------------------------------
+  - qualified_name: census.Ingestion.PopulationToDB
+    namespace: census.Ingestion
+    purpose: Persist a population extraction to MongoDB (representative of the ToDB family; all 15 share this signature shape).
+    signature: "PopulationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)"
+    effect: external
+    cost: cheap
+
+  - qualified_name: census.Ingestion.JoinedToDB
+    namespace: census.Ingestion
+    purpose: Persist the joined ACS+TIGER geographic dataset to MongoDB.
+    signature: "JoinedToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)"
+    effect: external
+    cost: cheap
+
+  - qualified_name: census.Ingestion.SummaryToDB
+    namespace: census.Ingestion
+    purpose: Persist the aggregated state summary to MongoDB.
+    signature: "SummaryToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)"
+    effect: external
+    cost: cheap

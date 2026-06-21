@@ -16,7 +16,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet PopulationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet PopulationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists income extraction results to the database.
@@ -24,7 +24,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet IncomeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet IncomeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists housing extraction results to the database.
@@ -32,7 +32,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet HousingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet HousingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists education extraction results to the database.
@@ -40,7 +40,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet EducationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet EducationToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists commuting extraction results to the database.
@@ -48,7 +48,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet CommutingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet CommutingToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists tenure extraction results to the database.
@@ -56,7 +56,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet TenureToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet TenureToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists household extraction results to the database.
@@ -64,7 +64,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet HouseholdsToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet HouseholdsToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists age distribution extraction results to the database.
@@ -72,7 +72,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet AgeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet AgeToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists vehicle availability extraction results to the database.
@@ -80,7 +80,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet VehiclesToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet VehiclesToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists racial composition extraction results to the database.
@@ -88,7 +88,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet RaceToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet RaceToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists poverty status extraction results to the database.
@@ -96,7 +96,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet PovertyToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet PovertyToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists employment extraction results to the database.
@@ -104,7 +104,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet EmploymentToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet EmploymentToDB(result: ACSResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists TIGER county boundary extraction results to the database.
@@ -112,7 +112,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet CountiesToDB(result: TIGERResult, state_fips: String) => (ingestion: IngestionResult)
+    event facet CountiesToDB(result: TIGERResult, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists the joined ACS+TIGER geographic dataset to the database.
@@ -120,7 +120,7 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet JoinedToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)
+    event facet JoinedToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 
     /**
      * Persists the aggregated state summary to the database.
@@ -128,5 +128,5 @@ namespace census.Ingestion {
      * @param state_fips FIPS code identifying the state
      * @returns ingestion Import confirmation with record count
      */
-    event facet SummaryToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult)
+    event facet SummaryToDB(result: CensusSummary, state_fips: String) => (ingestion: IngestionResult) with Effect(kind = "external") with Cost(tier = "cheap")
 }

@@ -8,7 +8,7 @@ namespace census.TIGER {
      * @param state_fips FIPS code identifying the state
      * @returns result County boundary features with metadata
      */
-    event facet ExtractCounties(file: CensusFile, state_fips: String) => (result: TIGERResult)
+    event facet ExtractCounties(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts census tract boundaries from a TIGER/Line shapefile.
@@ -16,7 +16,7 @@ namespace census.TIGER {
      * @param state_fips FIPS code identifying the state
      * @returns result Tract boundary features with metadata
      */
-    event facet ExtractTracts(file: CensusFile, state_fips: String) => (result: TIGERResult)
+    event facet ExtractTracts(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts block group boundaries from a TIGER/Line shapefile.
@@ -24,7 +24,7 @@ namespace census.TIGER {
      * @param state_fips FIPS code identifying the state
      * @returns result Block group boundary features with metadata
      */
-    event facet ExtractBlockGroups(file: CensusFile, state_fips: String) => (result: TIGERResult)
+    event facet ExtractBlockGroups(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts incorporated place boundaries from a TIGER/Line shapefile.
@@ -32,5 +32,5 @@ namespace census.TIGER {
      * @param state_fips FIPS code identifying the state
      * @returns result Place boundary features with metadata
      */
-    event facet ExtractPlaces(file: CensusFile, state_fips: String) => (result: TIGERResult)
+    event facet ExtractPlaces(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
 }

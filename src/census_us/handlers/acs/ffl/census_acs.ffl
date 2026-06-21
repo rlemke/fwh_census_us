@@ -9,7 +9,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Population extraction with record counts
      */
-    event facet ExtractPopulation(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractPopulation(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts household income data from an ACS file.
@@ -18,7 +18,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Income extraction with record counts
      */
-    event facet ExtractIncome(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractIncome(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts housing unit characteristics from an ACS file.
@@ -27,7 +27,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Housing extraction with record counts
      */
-    event facet ExtractHousing(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractHousing(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts educational attainment data from an ACS file.
@@ -36,7 +36,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Education extraction with record counts
      */
-    event facet ExtractEducation(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractEducation(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts commuting and transportation data from an ACS file.
@@ -45,7 +45,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Commuting extraction with record counts
      */
-    event facet ExtractCommuting(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractCommuting(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts housing tenure (owner vs renter) data from an ACS file.
@@ -54,7 +54,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Tenure extraction with record counts
      */
-    event facet ExtractTenure(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractTenure(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts household composition data from an ACS file.
@@ -63,7 +63,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Household extraction with record counts
      */
-    event facet ExtractHouseholds(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractHouseholds(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts age distribution data from a detailed ACS file.
@@ -72,7 +72,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Age distribution extraction with record counts
      */
-    event facet ExtractAge(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractAge(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts vehicle availability data from an ACS file.
@@ -81,7 +81,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Vehicle availability extraction with record counts
      */
-    event facet ExtractVehicles(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractVehicles(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts racial composition data from an ACS file.
@@ -90,7 +90,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Race extraction with record counts
      */
-    event facet ExtractRace(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractRace(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts poverty status data from an ACS file.
@@ -99,7 +99,7 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Poverty extraction with record counts
      */
-    event facet ExtractPoverty(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractPoverty(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Extracts employment and labor force data from an ACS file.
@@ -108,5 +108,5 @@ namespace census.ACS {
      * @param geo_level Geographic aggregation level
      * @returns result Employment extraction with record counts
      */
-    event facet ExtractEmployment(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult)
+    event facet ExtractEmployment(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 }

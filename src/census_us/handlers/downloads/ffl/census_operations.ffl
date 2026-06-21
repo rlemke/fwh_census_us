@@ -34,7 +34,7 @@ namespace census.Operations {
      * @param state_fips FIPS code identifying the state
      * @returns file Downloaded ACS data file with cache metadata
      */
-    event facet DownloadACS(year: String = "2023", period: String = "5-Year", state_fips: String) => (file: CensusFile)
+    event facet DownloadACS(year: String = "2023", period: String = "5-Year", state_fips: String) => (file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
     /**
      * Downloads TIGER/Line shapefiles for a state at the specified geography level.
@@ -43,12 +43,12 @@ namespace census.Operations {
      * @param state_fips FIPS code identifying the state
      * @returns file Downloaded TIGER shapefile with cache metadata
      */
-    event facet DownloadTIGER(year: String = "2024", geo_level: String = "COUNTY", state_fips: String) => (file: CensusFile)
+    event facet DownloadTIGER(year: String = "2024", geo_level: String = "COUNTY", state_fips: String) => (file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
     /**
      * Downloads detailed ACS microdata tables for a state.
      * @param state_fips FIPS code identifying the state
      * @returns file Downloaded detailed ACS file with cache metadata
      */
-    event facet DownloadACSDetailed(state_fips: String) => (file: CensusFile)
+    event facet DownloadACSDetailed(state_fips: String) => (file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 }

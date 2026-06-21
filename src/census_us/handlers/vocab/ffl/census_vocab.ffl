@@ -1,0 +1,38 @@
+/** Census ACS variable vocabulary — the domain ontology / semantic lookup.
+ *
+ * The semantic half of the discovery layer (the facet capability index is the
+ * other half): resolve a natural-language indicator (e.g. "median income",
+ * "population", "poverty rate") to the ACS table + estimate variable codes it
+ * denotes, so a composer turns an NL request into the concrete ACS table ID
+ * ("median income" -> B19013, column B19013_001E) without memorising the
+ * Census variable catalogue. Feed the resolved table_id straight into the
+ * matching census.ACS extraction facet.
+ *
+ * Pure, in-process lookups over the static ACS_TABLES catalogue — no network,
+ * no cache.
+ */
+namespace census.Vocab {
+
+    /** A resolved ACS variable, with the best table_id (e.g. "B19013"), its
+        human-readable label, the estimate column codes, a confidence in [0,1],
+        the vocabulary term that matched, and JSON `alternatives` (other
+        candidate tables). confidence 0 with an empty table_id means the term is
+        not in the vocabulary. */
+    schema ACSVariable {
+        table_id: String,
+        label: String,
+        columns: Json,
+        confidence: Double,
+        matched_term: String,
+        alternatives: Json
+    }
+
+    /** Resolves a natural-language `term` (e.g. "median income", "total
+        population", "educational attainment") to its ACS table + variable
+        codes. Returns the best match plus ranked alternatives. */
+    event facet ResolveVariable(term: String) => (result: ACSVariable) with Effect(kind = "pure") with Cost(tier = "free")
+
+    /** Lists every ACS table the vocabulary covers as a JSON array of
+        {table_id, label, columns} — discovery of what indicators are available. */
+    event facet ListVariables() => (variables: Json, count: Long) with Effect(kind = "pure") with Cost(tier = "free")
+}

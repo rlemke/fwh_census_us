@@ -10,7 +10,7 @@ namespace census.Summary {
      * @param extra_acs_paths Additional ACS extraction outputs to include in the join
      * @returns result Joined geographic census summary
      */
-    event facet JoinGeo(acs_path: String, tiger_path: String, join_field: String = "GEOID", extra_acs_paths: [String] = []) => (result: CensusSummary)
+    event facet JoinGeo(acs_path: String, tiger_path: String, join_field: String = "GEOID", extra_acs_paths: [String] = []) => (result: CensusSummary) with Effect(kind = "io") with Cost(tier = "cheap")
 
     /**
      * Aggregates multiple ACS extraction results into a single state-level summary.
@@ -24,5 +24,5 @@ namespace census.Summary {
      * @param employment Employment extraction result (optional)
      * @returns result Aggregated state census summary
      */
-    event facet SummarizeState(population: ACSResult, income: ACSResult, housing: ACSResult, education: ACSResult, commuting: ACSResult, race: ACSResult = null, poverty: ACSResult = null, employment: ACSResult = null) => (result: CensusSummary)
+    event facet SummarizeState(population: ACSResult, income: ACSResult, housing: ACSResult, education: ACSResult, commuting: ACSResult, race: ACSResult = null, poverty: ACSResult = null, employment: ACSResult = null) => (result: CensusSummary) with Effect(kind = "io") with Cost(tier = "cheap")
 }

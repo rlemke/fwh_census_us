@@ -9,6 +9,7 @@ from .downloads.download_handlers import register_download_handlers
 from .ingestion.ingestion_handlers import register_ingestion_handlers
 from .summary.summary_handlers import register_summary_handlers
 from .tiger.tiger_handlers import register_tiger_handlers
+from .vocab.vocab_handlers import register_vocab_handlers
 
 __all__ = [
     "register_all_handlers",
@@ -18,6 +19,7 @@ __all__ = [
     "register_tiger_handlers",
     "register_summary_handlers",
     "register_ingestion_handlers",
+    "register_vocab_handlers",
 ]
 
 
@@ -28,6 +30,7 @@ def register_all_handlers(poller) -> None:
     register_tiger_handlers(poller)
     register_summary_handlers(poller)
     register_ingestion_handlers(poller)
+    register_vocab_handlers(poller)
 
 
 def register_all_registry_handlers(runner) -> None:
@@ -37,9 +40,11 @@ def register_all_registry_handlers(runner) -> None:
     from .ingestion.ingestion_handlers import register_handlers as reg_ingestion
     from .summary.summary_handlers import register_handlers as reg_summary
     from .tiger.tiger_handlers import register_handlers as reg_tiger
+    from .vocab.vocab_handlers import register_handlers as reg_vocab
 
     reg_downloads(runner)
     reg_acs(runner)
     reg_tiger(runner)
     reg_summary(runner)
     reg_ingestion(runner)
+    reg_vocab(runner)
