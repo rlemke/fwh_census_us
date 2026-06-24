@@ -78,7 +78,15 @@ rates (e.g. poverty %) are nationally comparable.
 | `census.Vulnerability.BuildSVIMap(joined_path, region, title)` | Compute the SVI from a `JoinGeo` output GeoJSON + render a MapLibre choropleth (per-component click popups) → `output/svi/<region>/index.html` |
 | `census.workflows.BuildVulnerabilityMap(state_fips, state_name)` | One state, end-to-end: download → extract (incl. age) → join → `BuildSVIMap` |
 | `census.workflows.BuildVulnerabilityMapUS()` | **`andThen foreach`** over all 50 states + DC → one map per state, distributed across the fleet (national TIGER county file downloads once + cache-shares) |
-| `census.Vulnerability.BuildNationalIndex(title)` | Scan `output/svi/<state>/` → write `output/svi/index.html`, a sortable table linking every state map with its most-vulnerable county + median county poverty |
+| `census.Vulnerability.BuildNationalIndex(title)` | Scan `output/svi/<state>/` → write `output/svi/index.html`, a sortable table linking every state map with its most-vulnerable county + median county poverty (reads the tiny `svi-summary.json` sidecars BuildSVIMap writes — KB, not the full geojsons) |
+| `census.workflows.BuildNationalSVIIndex()` | Wraps `BuildNationalIndex` as a runnable workflow so the index path is a tracked result |
+
+**Clickable in the dashboard.** Any `.html` result attribute (each state's
+`html_path`, the national `index_path`) renders an **"Open map"** button on the
+run's detail page — the dashboard serves it from MinIO via `/output/raw/…`, and
+the national index's relative links to each state map resolve under the same
+path. So a `BuildNationalSVIIndex` run gives you a one-click browseable national
+map straight from the UI.
 
 ```bash
 # one state
