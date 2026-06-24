@@ -438,7 +438,13 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
         f"<div><span style=\"background:{c}\"></span>{int(v * 100)}</div>" for v, c in _RAMP
     )
     indicator_js = json.dumps([[k, lbl] for k, lbl in INDICATORS])
-    _attr = attribution.footer_html("census.workflows.BuildVulnerabilityMap")
+    # state_fips is derivable from the state name (lazy import avoids the
+    # maps<->svi import cycle) so the footer records both regeneration params.
+    from census_us.tools._lib.maps import STATE_FIPS
+    _attr = attribution.footer_html(
+        "census.workflows.BuildVulnerabilityMap",
+        params={"state_fips": STATE_FIPS.get(region), "state_name": region},
+    )
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} — {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">

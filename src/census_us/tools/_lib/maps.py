@@ -105,6 +105,7 @@ def build_metrics_map(
     region: str = "state",
     title: str = "Census metrics",
     storage=None,
+    params: dict | None = None,
 ) -> MetricsMapResult:
     with cstore.open_read(joined_path) as f:
         fc = json.load(f)
@@ -129,7 +130,7 @@ def build_metrics_map(
     with cstore.open_write(geo_path, "w") as f:
         f.write(json.dumps(fc, separators=(",", ":")))
 
-    html = _render_metrics_html(fc, title=title, region=region or "state")
+    html = _render_metrics_html(fc, title=title, region=region or "state", params=params)
     html_path = cstore.join(out_dir, "index.html")
     with cstore.open_write(html_path, "w") as f:
         f.write(html)
@@ -152,11 +153,13 @@ def _metric_js() -> str:
     return json.dumps(items)
 
 
-def _render_metrics_html(fc: dict, *, title: str, region: str) -> str:
+def _render_metrics_html(fc: dict, *, title: str, region: str, params: dict | None = None) -> str:
     bbox = svi_lib._bbox(fc)
     data_js = json.dumps(fc, separators=(",", ":"))
     ramp_js = json.dumps(_RAMP)
-    _attr = attribution.footer_html("census.workflows.BuildStateMetricsMap")
+    _attr = attribution.footer_html(
+        "census.workflows.BuildStateMetricsMap", params=params or {"state_name": region}
+    )
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} - {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -506,4 +509,7 @@ def build_state_metrics(
         ]
     counties = tx.extract_tiger(tiger_path, "COUNTY", state_fips, year="2024").output_path
     jr = sb.join_geo(acs_path=pop, tiger_path=counties, extra_acs_paths=extra)
-    return build_metrics_map(jr.output_path, region=state_name, title=f"Census metrics: {state_name}")
+    return build_metrics_map(
+        jr.output_path, region=state_name, title=f"Census metrics: {state_name}",
+        params={"state_fips": state_fips, "state_name": state_name},
+    )
