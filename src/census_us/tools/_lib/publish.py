@@ -103,20 +103,47 @@ def _prettify(dest: str) -> str:
     return " / ".join(pretty) or dest
 
 
+_HTML_HEAD = (
+    "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n"
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+    "<title>{title}</title>\n"
+    "<style>body{{font-family:system-ui,sans-serif;max-width:42rem;margin:3rem auto;"
+    "padding:0 1rem;line-height:1.6}}h1{{font-size:1.5rem}}h2{{font-size:1.1rem;margin:1.4rem 0 .3rem}}"
+    "h2 a{{color:#222;text-decoration:none}}h2 a:hover{{text-decoration:underline}}"
+    "a{{color:#0645ad;text-decoration:none}}a:hover{{text-decoration:underline}}li{{margin:.35rem 0}}"
+    "</style>\n</head><body>\n<h1>{title}</h1>\n"
+)
+_HTML_FOOT = "<p style=\"color:#888;font-size:.85rem;margin-top:1.5rem\">Published from Facetwork.</p>\n</body></html>\n"
+
+
+def _strip_section_suffix(label: str) -> str:
+    """'Nuclear power sites (world)' -> 'Nuclear power sites' for section pages."""
+    i = label.rfind(" (")
+    return label[:i].strip() if (i > 0 and label.rstrip().endswith(")")) else label
+
+
 def _landing_html(title: str, links: list[tuple[str, str]]) -> str:
     items = "\n".join(
-        f'    <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
+        f'  <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
         for label, dest in links
     )
-    return (
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n"
-        f"<title>{escape(title)}</title>\n"
-        "<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;"
-        "padding:0 1rem;line-height:1.6}h1{font-size:1.4rem}li{margin:.4rem 0}</style>\n"
-        f"</head><body>\n<h1>{escape(title)}</h1>\n<ul>\n{items}\n</ul>\n"
-        "<p style=\"color:#888;font-size:.85rem\">Published from Facetwork.</p>\n"
-        "</body></html>\n"
-    )
+    return _HTML_HEAD.format(title=escape(title)) + f"<ul>\n{items}\n</ul>\n" + _HTML_FOOT
+
+
+def _grouped_landing_html(title: str, sections: dict[str, list[tuple[str, str]]]) -> str:
+    """Root landing grouped by top-level section; each heading links its section index."""
+    blocks = []
+    for sec, items in sections.items():
+        lis = "\n".join(
+            f'  <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
+            for label, dest in items
+        )
+        if sec:
+            pretty = sec.replace("-", " ").replace("_", " ").title()
+            blocks.append(f'<h2><a href="{escape(sec)}/index.html">{escape(pretty)}</a></h2>\n<ul>\n{lis}\n</ul>')
+        else:
+            blocks.append(f"<ul>\n{lis}\n</ul>")
+    return _HTML_HEAD.format(title=escape(title)) + "\n".join(blocks) + "\n" + _HTML_FOOT
 
 
 def _ensure_pages(repo: str, branch: str, token: str) -> None:
@@ -207,10 +234,27 @@ def publish_bundles(
             label = labels[i] if labels and i < len(labels) and labels[i] else _prettify(dest)
             links.append((label, dest))
 
-        # .nojekyll so paths/underscores serve verbatim; landing index at root.
+        # .nojekyll so paths/underscores serve verbatim.
         open(os.path.join(repo_dir, ".nojekyll"), "w").close()
+        # Group bundles by top-level section (first path segment, e.g. "world").
+        sections: dict[str, list[tuple[str, str]]] = {}
+        for label, dest in links:
+            sec = dest.split("/")[0] if "/" in dest else ""
+            sections.setdefault(sec, []).append((label, dest))
+        # Per-section index page (e.g. world/index.html links the world maps),
+        # with section-relative hrefs + the redundant "(section)" suffix stripped.
+        for sec, items in sections.items():
+            if not sec:
+                continue
+            sec_dir = os.path.join(repo_dir, sec)
+            os.makedirs(sec_dir, exist_ok=True)
+            rel = [(_strip_section_suffix(lbl), dst.split("/", 1)[1]) for lbl, dst in items]
+            pretty = sec.replace("-", " ").replace("_", " ").title()
+            with open(os.path.join(sec_dir, "index.html"), "w", encoding="utf-8") as f:
+                f.write(_landing_html(f"{landing_title} - {pretty}", rel))
+        # Root landing, grouped by section (each heading links its section index).
         with open(os.path.join(repo_dir, "index.html"), "w", encoding="utf-8") as f:
-            f.write(_landing_html(landing_title, links))
+            f.write(_grouped_landing_html(landing_title, sections))
 
         _run(["git", "add", "-A"], cwd=repo_dir, env=env)
         commit = _run(["git", "commit", "-q", "-m",
