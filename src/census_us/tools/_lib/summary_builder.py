@@ -14,12 +14,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from facetwork.config import get_output_base
+from census_us.tools._lib import storage as cstore
 
 logger = logging.getLogger(__name__)
-
-_LOCAL_OUTPUT = get_output_base()
-_OUTPUT_DIR = os.environ.get("AFL_CENSUS_OUTPUT_DIR", os.path.join(_LOCAL_OUTPUT, "census-output"))
 
 
 @dataclass
@@ -156,8 +153,8 @@ def _compute_derived_metrics(props: dict[str, Any]) -> dict[str, Any]:
 def _load_acs_csv(path: str, join_field: str) -> dict[str, dict[str, str]]:
     """Load an ACS CSV file, returning a dict keyed by join_field."""
     data: dict[str, dict[str, str]] = {}
-    if path and os.path.exists(path):
-        with open(path, newline="") as f:
+    if path and cstore.exists(path):
+        with cstore.open_read(path, newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 key = row.get(join_field, "")
@@ -183,9 +180,6 @@ def join_geo(
     Returns:
         JoinResult with output path and feature count.
     """
-    output_dir = os.path.join(_OUTPUT_DIR, "joined")
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-
     # Load primary ACS data keyed by join field
     acs_data = _load_acs_csv(acs_path, join_field)
 
@@ -200,8 +194,8 @@ def join_geo(
 
     # Load TIGER GeoJSON
     features: list[dict[str, Any]] = []
-    if os.path.exists(tiger_path):
-        with open(tiger_path) as f:
+    if cstore.exists(tiger_path):
+        with cstore.open_read(tiger_path) as f:
             geojson = json.load(f)
             features = geojson.get("features", [])
 
@@ -235,9 +229,11 @@ def join_geo(
 
     acs_stem = Path(acs_path).stem if acs_path else "unknown"
     tiger_stem = Path(tiger_path).stem if tiger_path else "unknown"
-    output_path = os.path.join(output_dir, f"{acs_stem}_{tiger_stem}_joined.geojson")
+    output_path = cstore.join(
+        cstore.output_root(), "joined", f"{acs_stem}_{tiger_stem}_joined.geojson"
+    )
 
-    with open(output_path, "w") as f:
+    with cstore.open_write(output_path, "w") as f:
         json.dump({"type": "FeatureCollection", "features": joined_features}, f)
 
     logger.info("Joined %d features (%s + %s)", len(joined_features), acs_path, tiger_path)
@@ -275,9 +271,6 @@ def summarize_state(
     Returns:
         SummaryResult with output path, tables joined, and record count.
     """
-    output_dir = os.path.join(_OUTPUT_DIR, "summary")
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-
     # Collect all input results
     inputs: dict[str, dict[str, Any]] = {
         "population": population,
@@ -319,8 +312,8 @@ def summarize_state(
         "tables_joined": tables_joined,
     }
 
-    output_path = os.path.join(output_dir, f"{state_fips}_summary.json")
-    with open(output_path, "w") as f:
+    output_path = cstore.join(cstore.output_root(), "summary", f"{state_fips}_summary.json")
+    with cstore.open_write(output_path, "w") as f:
         json.dump(summary, f, indent=2)
 
     logger.info(

@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from facetwork.config import get_output_base
+from census_us.tools._lib import storage as cstore
 
 logger = logging.getLogger(__name__)
 
@@ -102,10 +102,6 @@ ACS_TABLES: dict[str, dict] = {
     },
 }
 
-_LOCAL_OUTPUT = get_output_base()
-_OUTPUT_DIR = os.environ.get("AFL_CENSUS_OUTPUT_DIR", os.path.join(_LOCAL_OUTPUT, "census-output"))
-
-
 @dataclass
 class ACSExtractionResult:
     """Result of an ACS table extraction."""
@@ -141,15 +137,15 @@ def extract_acs_table(
         raise ValueError(f"Unknown ACS table: {table_id}. Supported: {list(ACS_TABLES.keys())}")
 
     target_cols = table_info["columns"]
-    output_dir = os.path.join(_OUTPUT_DIR, "acs", table_id.lower())
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    output_path = os.path.join(output_dir, f"{state_fips}_{geo_level}_{table_id}.csv")
+    output_path = cstore.join(
+        cstore.output_root(), "acs", table_id.lower(), f"{state_fips}_{geo_level}_{table_id}.csv"
+    )
 
     records: list[dict[str, Any]] = []
 
-    if os.path.exists(csv_path):
+    if cstore.exists(csv_path):
         try:
-            with open(csv_path, newline="") as f:
+            with cstore.open_read(csv_path, newline="") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     geoid = row.get("GEOID", "")
@@ -165,7 +161,7 @@ def extract_acs_table(
             logger.warning("Failed to read ACS CSV %s: %s", csv_path, exc)
 
     # Write output CSV
-    with open(output_path, "w", newline="") as f:
+    with cstore.open_write(output_path, "w", newline="") as f:
         fieldnames = ["GEOID", "NAME"] + target_cols
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()

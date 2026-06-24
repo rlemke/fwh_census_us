@@ -20,12 +20,9 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-from facetwork.config import get_output_base
+from census_us.tools._lib import storage as cstore
 
 logger = logging.getLogger(__name__)
-
-_LOCAL_OUTPUT = get_output_base()
-_CACHE_DIR = os.environ.get("AFL_CENSUS_CACHE_DIR", os.path.join(_LOCAL_OUTPUT, "census-cache"))
 
 # Per-path locks to prevent duplicate concurrent downloads
 _locks: dict[str, threading.Lock] = {}
@@ -59,7 +56,6 @@ def _download_file(url: str, dest: str) -> int:
     if not HAS_REQUESTS:
         raise RuntimeError("requests library required for downloads")
 
-    Path(dest).parent.mkdir(parents=True, exist_ok=True)
     logger.info("Downloading %s -> %s", url, dest)
     start = time.monotonic()
 
@@ -67,7 +63,7 @@ def _download_file(url: str, dest: str) -> int:
     resp.raise_for_status()
 
     size = 0
-    with open(dest, "wb") as f:
+    with cstore.open_write(dest, "wb") as f:
         for chunk in resp.iter_content(chunk_size=65536):
             f.write(chunk)
             size += len(chunk)
@@ -110,18 +106,18 @@ def download_acs(
     Returns a CensusFile dict with url, path, date, size, wasInCache.
     """
     filename = f"acs_{year}_{state_fips}_{tag}.csv"
-    dest = os.path.join(_CACHE_DIR, "acs", year, filename)
+    dest = cstore.join(cstore.cache_root(), "acs", year, filename)
     url = f"{CENSUS_API_BASE}/{year}/acs/acs5?get=NAME,{columns}&for=county:*&in=state:{state_fips}"
 
     requested_cols = {c.strip() for c in columns.split(",")}
 
     lock = _get_lock(dest)
     with lock:
-        was_cached = os.path.exists(dest)
+        was_cached = cstore.exists(dest)
         if was_cached:
             # Validate cache has all requested columns
             try:
-                with open(dest, newline="") as f:
+                with cstore.open_read(dest, newline="") as f:
                     header = next(csv.reader(f))
                 if not requested_cols.issubset(set(header)):
                     logger.info("ACS cache stale (missing columns): %s", dest)
@@ -130,7 +126,7 @@ def download_acs(
                 was_cached = False
 
         if was_cached:
-            size = os.path.getsize(dest)
+            size = cstore.size(dest)
             logger.info("ACS cache hit: %s (%d bytes)", dest, size)
         else:
             size = _download_acs_api(url, dest, state_fips)
@@ -149,7 +145,6 @@ def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
     if not HAS_REQUESTS:
         raise RuntimeError("requests library required for downloads")
 
-    Path(dest).parent.mkdir(parents=True, exist_ok=True)
     logger.info("Fetching Census API: %s", url)
     start = time.monotonic()
 
@@ -171,7 +166,7 @@ def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
     skip = {"NAME", "state", "county"}
     data_cols = [c for c in header if c not in skip]
 
-    with open(dest, "w", newline="") as f:
+    with cstore.open_write(dest, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["GEOID", "NAME"] + data_cols)
         for row in rows:
@@ -182,7 +177,7 @@ def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
             values = [row[header.index(c)] for c in data_cols]
             writer.writerow([geoid, name] + values)
 
-    size = os.path.getsize(dest)
+    size = cstore.size(dest)
     elapsed = time.monotonic() - start
     logger.info("Fetched ACS API -> %s (%d rows, %d bytes, %.1fs)", dest, len(rows), size, elapsed)
     return size
@@ -212,13 +207,13 @@ def download_tiger(
         filename = f"tl_{year}_{state_fips}_{tiger_suffix}.zip"
 
     url = f"{TIGER_BASE}/TIGER{year}/{tiger_dir}/{filename}"
-    dest = os.path.join(_CACHE_DIR, "tiger", year, filename)
+    dest = cstore.join(cstore.cache_root(), "tiger", year, filename)
 
     lock = _get_lock(dest)
     with lock:
-        was_cached = os.path.exists(dest)
+        was_cached = cstore.exists(dest)
         if was_cached:
-            size = os.path.getsize(dest)
+            size = cstore.size(dest)
             logger.info("TIGER cache hit: %s (%d bytes)", dest, size)
         else:
             size = _download_file(url, dest)
