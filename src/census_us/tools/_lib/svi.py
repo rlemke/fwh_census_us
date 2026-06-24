@@ -220,6 +220,169 @@ def build_svi_map(
 # ---------------------------------------------------------------------------
 
 
+US_STATE_NAMES = [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia",
+    "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+    "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
+    "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire",
+    "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota",
+    "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island",
+    "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
+]
+
+
+def build_national_index(
+    regions: list[str] | None = None,
+    *,
+    title: str = "United States — Social Vulnerability Index",
+    storage=None,
+) -> tuple[str, int]:
+    """Build a national index page linking every per-state SVI map.
+
+    Scans ``output/svi/<state>/svi.geojson`` for each region (default: the 50
+    states + DC), summarizes it, and writes ``output/svi/index.html`` with a
+    sortable table linking to each state's choropleth (``./<state>/index.html``).
+
+    Per-state columns: county count, the most-vulnerable county (by within-state
+    SVI), and the **median county poverty rate** — a nationally-comparable raw
+    rate (the SVI percentile itself is ranked WITHIN each state, so it isn't
+    comparable across states; poverty % is).
+    """
+    svi_root = cstore.join(cstore.output_root(), "svi")
+    names = regions if regions is not None else US_STATE_NAMES
+
+    rows: list[dict[str, Any]] = []
+    for name in names:
+        gj_path = cstore.join(svi_root, name, "svi.geojson")
+        if not cstore.exists(gj_path):
+            continue
+        try:
+            with cstore.open_read(gj_path) as f:
+                fc = json.load(f)
+        except Exception:
+            continue
+        feats = fc.get("features") or []
+        scored = [ft for ft in feats if isinstance(ft["properties"].get("svi"), (int, float))]
+        top = max(scored, key=lambda x: x["properties"]["svi"], default=None)
+        povs = sorted(
+            ft["properties"]["poverty_pct"]
+            for ft in feats
+            if isinstance(ft["properties"].get("poverty_pct"), (int, float))
+        )
+        median_pov = povs[len(povs) // 2] if povs else None
+        rows.append(
+            {
+                "name": name,
+                "counties": len(feats),
+                "top_county": (top["properties"].get("NAME", "") if top else "").replace(
+                    " County", ""
+                ),
+                "top_pct": top["properties"].get("svi_percentile") if top else None,
+                "median_poverty": median_pov,
+            }
+        )
+
+    html = _render_index_html(rows, title=title)
+    index_path = cstore.join(svi_root, "index.html")
+    with cstore.open_write(index_path, "w") as f:
+        f.write(html)
+    return index_path, len(rows)
+
+
+def _render_index_html(rows: list[dict[str, Any]], *, title: str) -> str:
+    # nationally-comparable poverty scale (light → dark) for the mini bar
+    def pov_color(p):
+        if p is None:
+            return _NODATA_COLOR
+        for v, c in reversed(_RAMP):
+            if p >= v * 35:  # ~0..35% poverty mapped onto the ramp
+                return c
+        return _RAMP[0][1]
+
+    body_rows = ""
+    for r in sorted(rows, key=lambda x: x["name"]):
+        mp = r["median_poverty"]
+        mp_txt = "—" if mp is None else f"{mp:.1f}%"
+        tp = r["top_pct"]
+        tp_txt = "—" if tp is None else str(tp)
+        body_rows += (
+            f"<tr>"
+            f"<td><a href='./{r['name']}/index.html'>{r['name']}</a></td>"
+            f"<td class='n'>{r['counties']}</td>"
+            f"<td>{r['top_county']} <span class='mut'>({tp_txt})</span></td>"
+            f"<td class='n' data-v='{mp if mp is not None else -1}'>"
+            f"<span class='bar' style='background:{pov_color(mp)}'></span>{mp_txt}</td>"
+            f"</tr>\n"
+        )
+    legend = "".join(
+        f"<span style='background:{c}'>&nbsp;</span>" for _v, c in _RAMP
+    )
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {{ font-family:system-ui,sans-serif; margin:0; background:#fafafa; color:#222; }}
+  header {{ background:#800026; color:#fff; padding:18px 24px; }}
+  header h1 {{ margin:0 0 4px; font-size:20px; }}
+  header p {{ margin:0; font-size:13px; opacity:.92; max-width:760px; }}
+  .wrap {{ padding:18px 24px; }}
+  table {{ border-collapse:collapse; width:100%; max-width:820px; background:#fff;
+           box-shadow:0 1px 3px rgba(0,0,0,.12); }}
+  th,td {{ padding:7px 12px; border-bottom:1px solid #eee; font-size:13px; text-align:left; }}
+  th {{ background:#f3f3f3; cursor:pointer; user-select:none; position:sticky; top:0; }}
+  td.n {{ text-align:right; }}
+  a {{ color:#0645ad; text-decoration:none; }} a:hover {{ text-decoration:underline; }}
+  .mut {{ color:#999; }}
+  .bar {{ display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px;
+          vertical-align:-1px; }}
+  .lg {{ font-size:11px; color:#666; margin-top:10px; }}
+  .lg span {{ display:inline-block; width:18px; height:11px; }}
+</style></head>
+<body>
+<header>
+  <h1>{title}</h1>
+  <p>Social Vulnerability Index choropleths for all 50 states + DC, by county.
+  Click a state to open its map. Each county's SVI is the mean of six
+  percentile-ranked indicators (poverty, unemployment, education, age 65+,
+  no-vehicle, renter) — ranked <b>within that state</b>, so SVI percentiles are
+  not comparable across states. The <b>median poverty</b> column is a raw rate
+  and <b>is</b> nationally comparable. Data: US Census Bureau ACS 2023 + TIGER.</p>
+</header>
+<div class="wrap">
+<table id="t">
+  <thead><tr>
+    <th onclick="sortBy(0,'s')">State &#x25B4;&#x25BE;</th>
+    <th onclick="sortBy(1,'n')">Counties</th>
+    <th onclick="sortBy(2,'s')">Most-vulnerable county (SVI pctile)</th>
+    <th onclick="sortBy(3,'v')">Median county poverty</th>
+  </tr></thead>
+  <tbody>
+{body_rows}  </tbody>
+</table>
+<div class="lg">poverty scale (low&nbsp;{legend}&nbsp;high) &middot; {len(rows)} maps</div>
+</div>
+<script>
+function sortBy(col, kind) {{
+  const tb=document.querySelector('#t tbody');
+  const rows=[...tb.rows];
+  const dir = tb.dataset.col==String(col) && tb.dataset.dir=='1' ? -1 : 1;
+  rows.sort((a,b)=>{{
+    let x,y;
+    if(kind=='n'){{ x=+a.cells[col].textContent; y=+b.cells[col].textContent; }}
+    else if(kind=='v'){{ x=+a.cells[col].dataset.v; y=+b.cells[col].dataset.v; }}
+    else {{ x=a.cells[col].textContent.trim(); y=b.cells[col].textContent.trim();
+            return dir*x.localeCompare(y); }}
+    return dir*(x-y);
+  }});
+  rows.forEach(r=>tb.appendChild(r));
+  tb.dataset.col=col; tb.dataset.dir=dir==1?'1':'0';
+}}
+</script>
+</body></html>"""
+
+
 def _bbox(fc: dict[str, Any]) -> list[float]:
     minx = miny = float("inf")
     maxx = maxy = float("-inf")

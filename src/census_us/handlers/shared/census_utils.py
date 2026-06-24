@@ -50,6 +50,7 @@ from census_us.tools._lib.summary_builder import (  # noqa: F401
     summarize_state,
 )
 from census_us.tools._lib.svi import (  # noqa: F401
+    build_national_index,
     build_svi_map,
 )
 from census_us.tools._lib.tiger_extractor import (  # noqa: F401
@@ -67,6 +68,7 @@ __all__ = [
     # Symbols
     "ACS_TABLES",
     "OutputStore",
+    "build_national_index",
     "build_svi_map",
     "download_acs",
     "download_tiger",
