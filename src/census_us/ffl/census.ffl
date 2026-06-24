@@ -352,4 +352,38 @@ namespace census.workflows {
             file_count = published.file_count
         )
     }
+
+    /**
+     * Generic publish: push an arbitrary set of storage prefixes to a GitHub
+     * Pages site in one commit. ``prefixes`` are bare names (resolved under the
+     * census output root) or full s3:// / local paths; ``dests`` are the
+     * per-bundle paths within the repo; ``labels`` set the landing-page link
+     * text. Lets non-census outputs (e.g. save-earth world maps) ride the same
+     * token-gated publisher. The pages_url result is clickable in the dashboard.
+     * @returns pages_url Public GitHub Pages URL of the published site
+     */
+    workflow PublishToSite(
+        repo: String = "rlemke/facetwork-maps",
+        prefixes: [String] = [],
+        dests: [String] = [],
+        labels: [String] = [],
+        branch: String = "main",
+        include: [String] = [".html"],
+        landing_title: String = "Facetwork maps"
+    ) => (status: String, pages_url: String, file_count: Long) andThen {
+        published = PublishWebBundle(
+            repo = $.repo,
+            prefixes = $.prefixes,
+            dests = $.dests,
+            branch = $.branch,
+            landing_title = $.landing_title,
+            include = $.include,
+            labels = $.labels
+        )
+        yield PublishToSite(
+            status = "completed",
+            pages_url = published.pages_url,
+            file_count = published.file_count
+        )
+    }
 }

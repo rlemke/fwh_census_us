@@ -19,7 +19,8 @@ namespace census.Publish {
         dests: [String],
         branch: String = "main",
         landing_title: String = "Facetwork statistics",
-        include: [String] = []
+        include: [String] = [],
+        labels: [String] = []
     ) => (
         pages_url: String,
         file_count: Long,

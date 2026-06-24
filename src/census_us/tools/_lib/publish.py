@@ -93,6 +93,16 @@ def _download_tree(prefix: str, dest_dir: str,
     return n, total
 
 
+def _prettify(dest: str) -> str:
+    """Fallback landing label from a dest path: 'world/volcanoes' -> 'World / Volcanoes'."""
+    parts = [p for p in dest.split("/") if p]
+    pretty = [
+        "SVI" if seg.lower() == "svi" else seg.replace("-", " ").replace("_", " ").title()
+        for seg in parts
+    ]
+    return " / ".join(pretty) or dest
+
+
 def _landing_html(title: str, links: list[tuple[str, str]]) -> str:
     items = "\n".join(
         f'    <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
@@ -139,12 +149,15 @@ def publish_bundles(
     branch: str = "main",
     landing_title: str = "Facetwork statistics",
     include: list[str] | None = None,
+    labels: list[str] | None = None,
     token: str | None = None,
 ) -> PublishResult:
     """Publish each ``prefixes[i]`` into ``repo`` at ``dests[i]``; push once.
 
     ``include`` restricts which files are published by suffix (e.g. ``[".html"]``
     for an HTML-only site); empty/None publishes every object under each prefix.
+    ``labels`` (parallel to dests) sets the landing-page link text; a short dest
+    is prettified when no label is given.
     Returns the public Pages URL of the landing page (or the first dest)."""
     token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token:
@@ -177,7 +190,7 @@ def publish_bundles(
         total_n = 0
         total_b = 0
         links: list[tuple[str, str]] = []
-        for prefix, dest in zip(prefixes, dests):
+        for i, (prefix, dest) in enumerate(zip(prefixes, dests)):
             resolved = _resolve_prefix(prefix)
             target = os.path.join(repo_dir, dest) if dest else repo_dir
             if os.path.isdir(target):
@@ -191,7 +204,8 @@ def publish_bundles(
                 )
             total_n += n
             total_b += b
-            links.append((dest.rsplit("/", 1)[-1] or dest, dest))
+            label = labels[i] if labels and i < len(labels) and labels[i] else _prettify(dest)
+            links.append((label, dest))
 
         # .nojekyll so paths/underscores serve verbatim; landing index at root.
         open(os.path.join(repo_dir, ".nojekyll"), "w").close()

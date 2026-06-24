@@ -40,6 +40,7 @@ def handle_publish_web_bundle(params: dict[str, Any]) -> dict[str, Any]:
     branch = params.get("branch", "main") or "main"
     landing_title = params.get("landing_title", "Facetwork statistics") or "Facetwork statistics"
     include = params.get("include") or []
+    labels = params.get("labels") or []
     step_log = params.get("_step_log")
     if not repo:
         raise ValueError("PublishWebBundle requires repo ('owner/name')")
@@ -47,6 +48,7 @@ def handle_publish_web_bundle(params: dict[str, Any]) -> dict[str, Any]:
         res = publish_bundles(
             repo, list(prefixes), list(dests),
             branch=branch, landing_title=landing_title, include=list(include),
+            labels=list(labels),
         )
         if step_log:
             step_log(
