@@ -1,0 +1,29 @@
+namespace census.Publish {
+    use census.types
+
+    /** Publish one or more output bundles (each a storage prefix) to a GitHub
+      * Pages repo: localize every object under each prefix, copy it into the
+      * repo under the matching dest path (preserving the relative layout so the
+      * maps' relative geojson/links keep working), write a landing index.html,
+      * then commit + push. GitHub Pages serves the result at
+      * https://owner.github.io/name/dest/.
+      *
+      * A bare prefix (e.g. "metrics") resolves under the census output root; a
+      * full local path or s3:// URI is used as-is. ``prefixes`` and ``dests``
+      * are parallel lists. Auth is a GITHUB_TOKEN in the runner env; the facet
+      * is registered only where that token exists, so the publish task is
+      * claimed on the one credentialed host. */
+    event facet PublishWebBundle(
+        repo: String,
+        prefixes: [String],
+        dests: [String],
+        branch: String = "main",
+        landing_title: String = "Facetwork statistics",
+        include: [String] = []
+    ) => (
+        pages_url: String,
+        file_count: Long,
+        bytes_published: Long,
+        commit: String
+    ) with Effect(kind = "external") with Cost(tier = "expensive") with Timeout(minutes = 30)
+}

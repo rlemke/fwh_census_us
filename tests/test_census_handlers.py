@@ -1085,14 +1085,30 @@ class TestTIGERExtractor:
 
 class TestInitRegistryHandlers:
     def test_register_all_registry_handlers(self):
+        # The publish handler is token-gated; with no token it registers nothing.
         mod = _census_import("__init__")
         runner = MagicMock()
-        mod.register_all_registry_handlers(runner)
-        # 3 downloads + 12 ACS + 4 TIGER + 2 summary + 15 ingestion + 2 vocab = 38
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GITHUB_TOKEN", None)
+            os.environ.pop("GH_TOKEN", None)
+            mod.register_all_registry_handlers(runner)
+        # 4 downloads + 15 ACS + 5 TIGER + 2 summary + 15 ingestion + 6 vocab
+        # + 6 vulnerability + 0 publish (no token) = 49
         assert runner.register_handler.call_count == 49
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
         poller = MagicMock()
-        mod.register_all_handlers(poller)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GITHUB_TOKEN", None)
+            os.environ.pop("GH_TOKEN", None)
+            mod.register_all_handlers(poller)
         assert poller.register.call_count == 49
+
+    def test_publish_handler_registers_only_with_token(self):
+        mod = _census_import("__init__")
+        # With a token present, the publish facet is registered (49 + 1).
+        runner = MagicMock()
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "x"}, clear=False):
+            mod.register_all_registry_handlers(runner)
+        assert runner.register_handler.call_count == 50

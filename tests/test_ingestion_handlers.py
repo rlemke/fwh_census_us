@@ -6,6 +6,7 @@ upsert idempotency, and the ingestion handler dispatch pattern.
 
 import importlib
 import json
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -423,14 +424,20 @@ class TestIngestionHandlers:
 
 class TestInitRegistryHandlersWithIngestion:
     def test_register_all_registry_handlers(self):
+        # Publish handler is token-gated; with no token, total stays 49.
         mod = _census_import("__init__")
         runner = MagicMock()
-        mod.register_all_registry_handlers(runner)
-        # 3 downloads + 12 ACS + 4 TIGER + 2 summary + 15 ingestion + 2 vocab = 38
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GITHUB_TOKEN", None)
+            os.environ.pop("GH_TOKEN", None)
+            mod.register_all_registry_handlers(runner)
         assert runner.register_handler.call_count == 49
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
         poller = MagicMock()
-        mod.register_all_handlers(poller)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GITHUB_TOKEN", None)
+            os.environ.pop("GH_TOKEN", None)
+            mod.register_all_handlers(poller)
         assert poller.register.call_count == 49

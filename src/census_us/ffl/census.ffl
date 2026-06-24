@@ -7,6 +7,7 @@ namespace census.workflows {
     use census.Summary
     use census.Ingestion
     use census.Vulnerability
+    use census.Publish
 
     /**
      * Downloads ACS and TIGER data for a single state, extracts demographic
@@ -321,6 +322,34 @@ namespace census.workflows {
             status = "completed",
             index_path = idx.index_path,
             state_count = idx.state_count
+        )
+    }
+
+    /**
+     * Publish the census statistics result pages (per-state metric maps, state
+     * rankings, and SVI maps) to a public GitHub Pages site. One clone + commit
+     * + push of all three bundles. The pages_url result is a clickable link in
+     * the dashboard ("Open map").
+     * @param repo Target GitHub repo as "owner/name"
+     * @returns pages_url Public GitHub Pages URL of the published site
+     */
+    workflow PublishStatsSite(
+        repo: String = "rlemke/facetwork-maps",
+        branch: String = "main",
+        include: [String] = [".html"]
+    ) => (status: String, pages_url: String, file_count: Long) andThen {
+        published = PublishWebBundle(
+            repo = $.repo,
+            prefixes = ["metrics", "rankings", "svi"],
+            dests = ["census/metrics", "census/rankings", "census/svi"],
+            branch = $.branch,
+            landing_title = "US Census statistics maps",
+            include = $.include
+        )
+        yield PublishStatsSite(
+            status = "completed",
+            pages_url = published.pages_url,
+            file_count = published.file_count
         )
     }
 }

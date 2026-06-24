@@ -29,6 +29,7 @@ from census_us.tools._lib import (  # noqa: F401
     downloader,
     maps,
     metrics,
+    publish,
     summary_builder,
     svi,
     tiger_extractor,
@@ -38,6 +39,9 @@ from census_us.tools._lib.maps import (  # noqa: F401
     build_metrics_map,
     build_national_rankings,
     build_state_metrics,
+)
+from census_us.tools._lib.publish import (  # noqa: F401
+    publish_bundles,
 )
 
 # Symbol-level re-exports — preserve the names handlers import today.
@@ -72,6 +76,7 @@ __all__ = [
     "downloader",
     "maps",
     "metrics",
+    "publish",
     "summary_builder",
     "svi",
     "tiger_extractor",
@@ -79,6 +84,7 @@ __all__ = [
     "build_metrics_map",
     "build_national_rankings",
     "build_state_metrics",
+    "publish_bundles",
     # Symbols
     "ACS_TABLES",
     "OutputStore",
