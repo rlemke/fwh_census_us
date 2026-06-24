@@ -21,6 +21,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from census_us.tools._lib import attribution
 from census_us.tools._lib import downloader
 from census_us.tools._lib import metrics
 from census_us.tools._lib import storage as cstore
@@ -149,6 +150,7 @@ def _render_metrics_html(fc: dict, *, title: str, region: str) -> str:
     bbox = svi_lib._bbox(fc)
     data_js = json.dumps(fc, separators=(",", ":"))
     ramp_js = json.dumps(_RAMP)
+    _attr = attribution.footer_html("census.workflows.BuildStateMetricsMap")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} - {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -232,7 +234,7 @@ map.on('load',()=>{{
   map.on('mouseenter','fill',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
 }});
-</script></body></html>"""
+</script>{_attr}</body></html>"""
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +317,7 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
     ramp_js = json.dumps(_RAMP)
     # rankings rows source: {fips: {key: val}} + names
     rank_src = json.dumps({_FIPS_NAME.get(f, f): v for f, v in state_vals.items()})
+    _attr = attribution.footer_html("census.workflows.BuildRankings")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -377,7 +380,7 @@ map.on('load',()=>{{
     new maplibregl.Popup({{closeButton:true,maxWidth:'320px'}}).setLngLat(e.lngLat)
       .setHTML(`<h4>${{p.state_name||p.NAME}}</h4><table>${{rows}}</table>`).addTo(map);}});
 }});
-</script></body></html>"""
+</script>{_attr}</body></html>"""
 
 
 def _metric_js_national() -> str:
@@ -425,6 +428,7 @@ def build_metrics_index(
             f"<td class='n' data-v='{r['poverty'] or -1}'>{pov}</td>"
             f"<td class='n' data-v='{r['uninsured'] or -1}'>{uni}</td></tr>\n"
         )
+    _attr = attribution.footer_html("census.workflows.BuildMetricsMapsIndex")
     html = f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -448,7 +452,7 @@ function s(c,k){{const tb=document.querySelector('#t tbody');const rs=[...tb.row
  const d=tb.dataset.c==c&&tb.dataset.d=='1'?-1:1;
  rs.sort((a,b)=>k=='v'?d*((+a.cells[c].dataset.v)-(+b.cells[c].dataset.v)):d*a.cells[c].textContent.localeCompare(b.cells[c].textContent));
  rs.forEach(r=>tb.appendChild(r));tb.dataset.c=c;tb.dataset.d=d==1?'1':'0';}}
-</script></body></html>"""
+</script>{_attr}</body></html>"""
     index_path = cstore.join(root, "index.html")
     with cstore.open_write(index_path, "w") as f:
         f.write(html)

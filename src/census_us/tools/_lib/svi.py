@@ -35,6 +35,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from census_us.tools._lib import attribution
 from census_us.tools._lib import metrics
 from census_us.tools._lib import storage as cstore
 
@@ -340,6 +341,7 @@ def _render_index_html(rows: list[dict[str, Any]], *, title: str) -> str:
     legend = "".join(
         f"<span style='background:{c}'>&nbsp;</span>" for _v, c in _RAMP
     )
+    _attr = attribution.footer_html("census.workflows.BuildNationalSVIIndex")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -401,7 +403,7 @@ function sortBy(col, kind) {{
   tb.dataset.col=col; tb.dataset.dir=dir==1?'1':'0';
 }}
 </script>
-</body></html>"""
+{_attr}</body></html>"""
 
 
 def _bbox(fc: dict[str, Any]) -> list[float]:
@@ -436,6 +438,7 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
         f"<div><span style=\"background:{c}\"></span>{int(v * 100)}</div>" for v, c in _RAMP
     )
     indicator_js = json.dumps([[k, lbl] for k, lbl in INDICATORS])
+    _attr = attribution.footer_html("census.workflows.BuildVulnerabilityMap")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} — {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -509,4 +512,4 @@ map.on('load', () => {{
   map.on('mouseenter','svi-fill',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave','svi-fill',()=>map.getCanvas().style.cursor='');
 }});
-</script></body></html>"""
+</script>{_attr}</body></html>"""
