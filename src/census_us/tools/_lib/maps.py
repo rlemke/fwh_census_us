@@ -383,3 +383,109 @@ map.on('load',()=>{{
 def _metric_js_national() -> str:
     items = [{"key": f"m_{m.key}", "label": m.label, "fmt": m.fmt, "worse": m.worse} for m in metrics.METRICS]
     return json.dumps(items)
+
+
+# ---------------------------------------------------------------------------
+# (a) Per-state metric-maps index.
+# ---------------------------------------------------------------------------
+
+
+def build_metrics_index(
+    regions: list[str] | None = None, *, title: str = "US census metrics - state maps",
+) -> tuple[str, int]:
+    """Index page linking every per-state multi-metric map.
+
+    Reads each state's metrics-summary.json (state-level values) and writes
+    output/metrics/index.html — a sortable table linking ./<state>/index.html
+    with teaser columns (median income, poverty %, uninsured %).
+    """
+    root = cstore.join(cstore.output_root(), "metrics")
+    names = regions if regions is not None else list(STATE_FIPS.keys())
+    rows = []
+    for name in names:
+        sp = cstore.join(root, name, "metrics-summary.json")
+        if not cstore.exists(sp):
+            continue
+        try:
+            with cstore.open_read(sp) as f:
+                vals = (json.load(f).get("values") or {})
+        except Exception:
+            continue
+        rows.append({"name": name, "income": vals.get("median_income"),
+                     "poverty": vals.get("poverty"), "uninsured": vals.get("uninsured")})
+
+    body = ""
+    for r in sorted(rows, key=lambda x: x["name"]):
+        inc = "—" if r["income"] is None else "$" + format(int(r["income"]), ",")
+        pov = "—" if r["poverty"] is None else f"{r['poverty']:.1f}%"
+        uni = "—" if r["uninsured"] is None else f"{r['uninsured']:.1f}%"
+        body += (
+            f"<tr><td><a href='./{r['name']}/index.html'>{r['name']}</a></td>"
+            f"<td class='n' data-v='{r['income'] or -1}'>{inc}</td>"
+            f"<td class='n' data-v='{r['poverty'] or -1}'>{pov}</td>"
+            f"<td class='n' data-v='{r['uninsured'] or -1}'>{uni}</td></tr>\n"
+        )
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+ body{{font-family:system-ui,sans-serif;margin:0;background:#fafafa;color:#222}}
+ header{{background:#225;color:#fff;padding:16px 22px}} header h1{{margin:0 0 3px;font-size:19px}}
+ header p{{margin:0;font-size:13px;opacity:.9;max-width:720px}}
+ .wrap{{padding:16px 22px}} table{{border-collapse:collapse;background:#fff;max-width:680px;width:100%;box-shadow:0 1px 3px rgba(0,0,0,.12)}}
+ th,td{{padding:7px 12px;border-bottom:1px solid #eee;font-size:13px;text-align:left}} th{{background:#f3f3f3;cursor:pointer}}
+ td.n,th.n{{text-align:right}} a{{color:#0645ad;text-decoration:none}} a:hover{{text-decoration:underline}}
+</style></head><body>
+<header><h1>{title}</h1><p>Click a state for its county map with a dropdown over all 13 census
+metrics + the Social Vulnerability Index ("dark = worse"). Data: US Census ACS 2023 + TIGER.</p></header>
+<div class="wrap"><table id="t"><thead><tr>
+ <th onclick="s(0,'s')">State</th><th class="n" onclick="s(1,'v')">Median income</th>
+ <th class="n" onclick="s(2,'v')">Poverty</th><th class="n" onclick="s(3,'v')">Uninsured</th>
+</tr></thead><tbody>
+{body}</tbody></table><p style="color:#666;font-size:12px;margin-top:10px">{len(rows)} state maps</p></div>
+<script>
+function s(c,k){{const tb=document.querySelector('#t tbody');const rs=[...tb.rows];
+ const d=tb.dataset.c==c&&tb.dataset.d=='1'?-1:1;
+ rs.sort((a,b)=>k=='v'?d*((+a.cells[c].dataset.v)-(+b.cells[c].dataset.v)):d*a.cells[c].textContent.localeCompare(b.cells[c].textContent));
+ rs.forEach(r=>tb.appendChild(r));tb.dataset.c=c;tb.dataset.d=d==1?'1':'0';}}
+</script></body></html>"""
+    index_path = cstore.join(root, "index.html")
+    with cstore.open_write(index_path, "w") as f:
+        f.write(html)
+    return index_path, len(rows)
+
+
+# ---------------------------------------------------------------------------
+# (b) Batched single-task per-state extract → join → map (anti-wedge).
+# ---------------------------------------------------------------------------
+
+
+def build_state_metrics(
+    acs_path: str, detail_path: str, social_path: str, tiger_path: str,
+    *, state_fips: str, state_name: str, year: str = "2023",
+) -> MetricsMapResult:
+    """One task does it all: extract every ACS table (each CSV localized ONCE via
+    the read-through cache, not 11x across the fleet), extract county geometry,
+    join, and render the per-state multi-metric map. Collapses the 14-facet chain
+    into a single handler — far fewer tasks/localizes, so the fan-out can't wedge.
+    """
+    from census_us.tools._lib import acs_extractor as ax
+    from census_us.tools._lib import summary_builder as sb
+    from census_us.tools._lib import tiger_extractor as tx
+
+    def ex(path, table):
+        return ax.extract_acs_table(
+            csv_path=path, table_id=table, state_fips=state_fips, geo_level="county", year=year,
+        ).output_path
+
+    pop = ex(acs_path, "B01003")
+    extra = [
+        ex(acs_path, "B19013"), ex(acs_path, "B25003"), ex(acs_path, "B25044"),
+        ex(acs_path, "B17001"), ex(acs_path, "B23025"),  # default batch
+        ex(detail_path, "B01001"),                        # detailed (age)
+        ex(social_path, "B15003"), ex(social_path, "B19083"),
+        ex(social_path, "B19058"), ex(social_path, "B27001"),  # social batch
+    ]
+    counties = tx.extract_tiger(tiger_path, "COUNTY", state_fips, year="2024").output_path
+    jr = sb.join_geo(acs_path=pop, tiger_path=counties, extra_acs_paths=extra)
+    return build_metrics_map(jr.output_path, region=state_name, title=f"Census metrics: {state_name}")

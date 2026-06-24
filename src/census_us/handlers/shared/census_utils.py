@@ -34,8 +34,10 @@ from census_us.tools._lib import (  # noqa: F401
     tiger_extractor,
 )
 from census_us.tools._lib.maps import (  # noqa: F401
+    build_metrics_index,
     build_metrics_map,
     build_national_rankings,
+    build_state_metrics,
 )
 
 # Symbol-level re-exports — preserve the names handlers import today.
@@ -73,8 +75,10 @@ __all__ = [
     "summary_builder",
     "svi",
     "tiger_extractor",
+    "build_metrics_index",
     "build_metrics_map",
     "build_national_rankings",
+    "build_state_metrics",
     # Symbols
     "ACS_TABLES",
     "OutputStore",

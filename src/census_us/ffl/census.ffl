@@ -229,33 +229,16 @@ namespace census.workflows {
         acs_detail = DownloadACSDetailed(state_fips = $.state_fips)
         acs_social = DownloadACSSocial(state_fips = $.state_fips)
         tiger = DownloadTIGER(state_fips = $.state_fips, geo_level = "COUNTY")
-        pop = ExtractPopulation(file = acs.file, state_fips = $.state_fips)
-        income = ExtractIncome(file = acs.file, state_fips = $.state_fips)
-        tenure = ExtractTenure(file = acs.file, state_fips = $.state_fips)
-        vehicles = ExtractVehicles(file = acs.file, state_fips = $.state_fips)
-        poverty = ExtractPoverty(file = acs.file, state_fips = $.state_fips)
-        employment = ExtractEmployment(file = acs.file, state_fips = $.state_fips)
-        age = ExtractAge(file = acs_detail.file, state_fips = $.state_fips)
-        education = ExtractEducation(file = acs_social.file, state_fips = $.state_fips)
-        gini = ExtractGini(file = acs_social.file, state_fips = $.state_fips)
-        snap = ExtractSnap(file = acs_social.file, state_fips = $.state_fips)
-        insurance = ExtractInsurance(file = acs_social.file, state_fips = $.state_fips)
-        counties = ExtractCounties(file = tiger.file, state_fips = $.state_fips)
-        joined = JoinGeo(
-            acs_path = pop.result.output_path,
-            tiger_path = counties.result.output_path,
-            extra_acs_paths = [
-                income.result.output_path, tenure.result.output_path,
-                vehicles.result.output_path, poverty.result.output_path,
-                employment.result.output_path, age.result.output_path,
-                education.result.output_path, gini.result.output_path,
-                snap.result.output_path, insurance.result.output_path
-            ]
-        )
-        map = BuildMetricsMap(
-            joined_path = joined.result.output_path,
-            region = $.state_name,
-            title = "Census metrics: " ++ $.state_name
+        // Batched single-task extract+join+render: one handler reads each ACS
+        // CSV ONCE (read-through cache), extracts all 11 tables, joins, renders.
+        // Replaces the 14-facet chain that wedged the fleet on redundant localizes.
+        map = BuildStateMetrics(
+            acs_file = acs.file,
+            detail_file = acs_detail.file,
+            social_file = acs_social.file,
+            tiger_file = tiger.file,
+            state_fips = $.state_fips,
+            state_name = $.state_name
         )
         yield BuildStateMetricsMap(
             status = "completed",
@@ -321,6 +304,23 @@ namespace census.workflows {
             status = "completed",
             html_path = rankings.html_path,
             state_count = rankings.state_count
+        )
+    }
+
+    /**
+     * Build the index page linking every per-state metric map. Run after
+     * BuildStateMetricsMapUS. The index_path result is a clickable .html in the
+     * dashboard ("Open map").
+     * @returns index_path The metric-maps index
+     */
+    workflow BuildMetricsMapsIndex(
+        title: String = "US census metrics - state maps"
+    ) => (status: String, index_path: String, state_count: Long) andThen {
+        idx = BuildMetricsIndex(title = $.title)
+        yield BuildMetricsMapsIndex(
+            status = "completed",
+            index_path = idx.index_path,
+            state_count = idx.state_count
         )
     }
 }
