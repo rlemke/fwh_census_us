@@ -84,7 +84,13 @@ def _state_aggregate(features: list[dict]) -> dict[str, float | None]:
                     summed[k] = summed.get(k, 0.0) + fv
     out: dict[str, float | None] = {}
     for m in metrics.METRICS:
-        out[m.key] = None if m.raw is not None else metrics.compute_metric(summed, m)
+        if m.raw is not None:
+            # Count metrics (total population) aggregate to the county sum;
+            # median income / Gini can't be summed → None (filled by the
+            # state-level pull in build_national_rankings).
+            out[m.key] = round(summed[m.raw]) if (m.fmt == "count" and m.raw in summed) else None
+        else:
+            out[m.key] = metrics.compute_metric(summed, m)
     return out
 
 
@@ -183,6 +189,7 @@ def _render_metrics_html(fc: dict, *, title: str, region: str) -> str:
 const DATA={data_js}, METRICS={_metric_js()}, RAMP={ramp_js};
 const fmt=(v,f)=>{{ if(v===null||v===undefined||v==='') return '—';
   if(f==='dollar') return '$'+Math.round(v).toLocaleString();
+  if(f==='count') return Math.round(v).toLocaleString();
   if(f==='index') return (Math.round(v*1000)/1000).toString();
   if(f==='svi') return Math.round(v*100)+' pctile';
   return (Math.round(v*10)/10)+'%'; }};
@@ -344,6 +351,7 @@ const DATA={data_js}, RANK={rank_src}, RAMP={ramp_js};
 const METRICS={_metric_js_national()};
 const fmt=(v,f)=>{{ if(v===null||v===undefined||v==='') return '—';
   if(f==='dollar') return '$'+Math.round(v).toLocaleString();
+  if(f==='count') return Math.round(v).toLocaleString();
   if(f==='index') return (Math.round(v*1000)/1000).toString();
   return (Math.round(v*10)/10)+'%'; }};
 const vals=k=>DATA.features.map(f=>f.properties[k]).filter(v=>typeof v==='number');
@@ -466,7 +474,7 @@ function s(c,k){{const tb=document.querySelector('#t tbody');const rs=[...tb.row
 
 def build_state_metrics(
     acs_path: str, detail_path: str, social_path: str, tiger_path: str,
-    *, state_fips: str, state_name: str, year: str = "2023",
+    *, state_fips: str, state_name: str, year: str = "2023", demo_path: str | None = None,
 ) -> MetricsMapResult:
     """One task does it all: extract every ACS table (each CSV localized ONCE via
     the read-through cache, not 11x across the fleet), extract county geometry,
@@ -490,6 +498,12 @@ def build_state_metrics(
         ex(social_path, "B15003"), ex(social_path, "B19083"),
         ex(social_path, "B19058"), ex(social_path, "B27001"),  # social batch
     ]
+    # Demographic batch (race/ethnicity, nativity, mobility). Optional so older
+    # callers without the 4th download still build (those metrics show "—").
+    if demo_path:
+        extra += [
+            ex(demo_path, "B03002"), ex(demo_path, "B05002"), ex(demo_path, "B07003"),
+        ]
     counties = tx.extract_tiger(tiger_path, "COUNTY", state_fips, year="2024").output_path
     jr = sb.join_geo(acs_path=pop, tiger_path=counties, extra_acs_paths=extra)
     return build_metrics_map(jr.output_path, region=state_name, title=f"Census metrics: {state_name}")

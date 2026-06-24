@@ -229,15 +229,17 @@ namespace census.workflows {
         acs = DownloadACS(state_fips = $.state_fips)
         acs_detail = DownloadACSDetailed(state_fips = $.state_fips)
         acs_social = DownloadACSSocial(state_fips = $.state_fips)
+        acs_demo = DownloadACSDemographics(state_fips = $.state_fips)
         tiger = DownloadTIGER(state_fips = $.state_fips, geo_level = "COUNTY")
         // Batched single-task extract+join+render: one handler reads each ACS
-        // CSV ONCE (read-through cache), extracts all 11 tables, joins, renders.
+        // CSV ONCE (read-through cache), extracts all tables, joins, renders.
         // Replaces the 14-facet chain that wedged the fleet on redundant localizes.
         map = BuildStateMetrics(
             acs_file = acs.file,
             detail_file = acs_detail.file,
             social_file = acs_social.file,
             tiger_file = tiger.file,
+            demo_file = acs_demo.file,
             state_fips = $.state_fips,
             state_name = $.state_name
         )

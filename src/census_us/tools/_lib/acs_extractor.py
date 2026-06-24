@@ -126,6 +126,24 @@ ACS_TABLES: dict[str, dict] = {
             "B27001_054E", "B27001_057E",
         ],
     },
+    # Demographic-context batch (race/ethnicity, nativity, geographic mobility).
+    "B03002": {
+        "label": "Hispanic or Latino Origin by Race",
+        # total + NH White / NH Black / NH Asian / Hispanic (the race/eth metrics).
+        "columns": ["B03002_001E", "B03002_003E", "B03002_004E",
+                    "B03002_006E", "B03002_012E"],
+    },
+    "B05002": {
+        "label": "Place of Birth by Nativity",
+        "columns": ["B05002_001E", "B05002_013E"],  # total + foreign-born
+    },
+    "B07003": {
+        "label": "Geographical Mobility in the Past Year",
+        # total + the four "moved" category totals (within county / different
+        # county same state / different state / from abroad).
+        "columns": ["B07003_001E", "B07003_007E", "B07003_010E",
+                    "B07003_013E", "B07003_016E"],
+    },
 }
 
 @dataclass

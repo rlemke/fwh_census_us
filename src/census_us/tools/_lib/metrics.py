@@ -10,8 +10,10 @@ it contributes to the Social Vulnerability Index. The registry drives:
 - the SVI (``in_svi`` metrics, all oriented so higher = more vulnerable).
 
 ACS tables used: B17001 (poverty), B23025 (employment), B15003 (education),
-B25044 (vehicles), B01001 (age), B25003 (tenure), B19013 (median income),
-B19083 (Gini), B19058 (public assistance/SNAP), B27001 (health insurance).
+B25044 (vehicles), B01001 (age + total population), B25003 (tenure),
+B19013 (median income), B19083 (Gini), B19058 (public assistance/SNAP),
+B27001 (health insurance), B03002 (race/ethnicity), B05002 (nativity /
+foreign-born), B07003 (geographic mobility / recent movers).
 """
 
 from __future__ import annotations
@@ -78,6 +80,25 @@ METRICS: list[Metric] = [
            num=["B15003_023E", "B15003_024E", "B15003_025E"], den="B15003_001E"),
     Metric("median_income", "Median household income", "dollar", "low", False,
            raw="B19013_001E", scale=1.0),
+    # Demographic context (standalone, NOT in the SVI — no "worse" direction;
+    # worse="high" just orients dark=more / rank highest-first).
+    Metric("total_population", "Total population", "count", "high", False,
+           raw="B01001_001E", scale=1.0),
+    Metric("people_of_color", "People of color", "pct", "high", False,
+           num=["B03002_003E"], den="B03002_001E", invert=True),
+    Metric("hispanic", "Hispanic / Latino", "pct", "high", False,
+           num=["B03002_012E"], den="B03002_001E"),
+    Metric("black", "Black", "pct", "high", False,
+           num=["B03002_004E"], den="B03002_001E"),
+    Metric("asian", "Asian", "pct", "high", False,
+           num=["B03002_006E"], den="B03002_001E"),
+    Metric("white_nh", "White (non-Hispanic)", "pct", "high", False,
+           num=["B03002_003E"], den="B03002_001E"),
+    Metric("foreign_born", "Foreign-born", "pct", "high", False,
+           num=["B05002_013E"], den="B05002_001E"),
+    Metric("recent_movers", "Recent movers (past year)", "pct", "high", False,
+           num=["B07003_007E", "B07003_010E", "B07003_013E", "B07003_016E"],
+           den="B07003_001E"),
 ]
 
 BY_KEY: dict[str, Metric] = {m.key: m for m in METRICS}
@@ -87,6 +108,9 @@ SVI_METRICS: list[Metric] = [m for m in METRICS if m.in_svi]
 REQUIRED_TABLES = [
     "B17001", "B23025", "B15003", "B25044", "B01001", "B25003",
     "B19013", "B19083", "B19058", "B27001",
+    # Demographic context: B01001_001E (total pop, already pulled via B01001),
+    # B03002 (race/ethnicity), B05002 (nativity), B07003 (geographic mobility).
+    "B03002", "B05002", "B07003",
 ]
 
 
@@ -106,7 +130,7 @@ def compute_metric(props: dict[str, Any], m: Metric) -> float | None:
         # ACS uses large negative sentinels for "no data" (e.g. -666666666).
         if v is None or v <= -1e8:
             return None
-        return round(v, 4 if m.fmt == "index" else 0 if m.fmt == "dollar" else 2)
+        return round(v, 4 if m.fmt == "index" else 0 if m.fmt in ("dollar", "count") else 2)
     den = _num(props, m.den) if m.den else None
     if den is None or den == 0:
         return None

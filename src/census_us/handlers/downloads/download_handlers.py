@@ -14,6 +14,10 @@ NAMESPACE = "census.Operations"
 # Tables that ride the separate "social" batch (the default batch is already
 # near the API's 50-variable cap). Full B15003 ladder + Gini + SNAP + insurance.
 _SOCIAL_TABLES = ["B15003", "B19083", "B19058", "B27001"]
+# Demographic-context batch: race/ethnicity (B03002) + nativity / foreign-born
+# (B05002) + geographic mobility / recent movers (B07003). 12 vars — its own
+# request since the default batch is already ~44 vars.
+_DEMOGRAPHIC_TABLES = ["B03002", "B05002", "B07003"]
 
 
 def handle_download_acs(params: dict[str, Any]) -> dict[str, Any]:
@@ -139,12 +143,46 @@ def handle_download_acs_social(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_acs_demographics(params: dict[str, Any]) -> dict[str, Any]:
+    """Download the 'demographics' ACS batch for a state's counties.
+
+    Race/ethnicity (B03002) + nativity (B05002) + geographic mobility (B07003)
+    — the columns the race, foreign-born, and recent-movers metrics need. A
+    separate request because the default batch is already near the 50-var cap.
+
+    Params:
+        state_fips: Two-digit FIPS code
+    """
+    state_fips = params["state_fips"]
+    step_log = params.get("_step_log")
+
+    cols: list[str] = []
+    for t in _DEMOGRAPHIC_TABLES:
+        cols.extend(ACS_TABLES[t]["columns"])
+    columns = ",".join(cols)
+
+    try:
+        result = download_acs(state_fips=state_fips, columns=columns, tag="demographics")
+        source = "cache" if result["wasInCache"] else "download"
+        if step_log:
+            step_log(
+                f"DownloadACSDemographics: state={state_fips} ({len(cols)} vars, {source})",
+                level="success",
+            )
+        return {"file": result}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadACSDemographics: {exc}", level="error")
+        raise
+
+
 # RegistryRunner dispatch adapter
 _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACS": handle_download_acs,
     f"{NAMESPACE}.DownloadTIGER": handle_download_tiger,
     f"{NAMESPACE}.DownloadACSDetailed": handle_download_acs_detailed,
     f"{NAMESPACE}.DownloadACSSocial": handle_download_acs_social,
+    f"{NAMESPACE}.DownloadACSDemographics": handle_download_acs_demographics,
 }
 
 
