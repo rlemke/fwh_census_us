@@ -192,4 +192,24 @@ namespace census.workflows {
             state_name = $.st.name
         )
     }
+
+    /**
+     * Builds the national index page linking every per-state SVI map and
+     * returns its path as a result. Run after BuildVulnerabilityMapUS. The
+     * `index_path` result ends in `index.html`, so the dashboard renders an
+     * "Open map" button that serves it from MinIO (with its relative links to
+     * each state map resolving under the same /output/raw/ path).
+     * @returns index_path  The national index (clickable in the dashboard)
+     * @returns state_count Number of state maps linked
+     */
+    workflow BuildNationalSVIIndex(
+        title: String = "United States - Social Vulnerability Index"
+    ) => (status: String, index_path: String, state_count: Long) andThen {
+        idx = BuildNationalIndex(title = $.title)
+        yield BuildNationalSVIIndex(
+            status = "completed",
+            index_path = idx.index_path,
+            state_count = idx.state_count
+        )
+    }
 }

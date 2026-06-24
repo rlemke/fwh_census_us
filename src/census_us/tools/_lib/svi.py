@@ -206,6 +206,30 @@ def build_svi_map(
     with cstore.open_write(html_path, "w") as f:
         f.write(html)
 
+    # 6) tiny summary sidecar — lets build_national_index assemble the national
+    #    page from KB-sized files instead of re-downloading every 1+ MB geojson.
+    top = max(
+        (ft for ft in features if isinstance(ft["properties"].get("svi"), (int, float))),
+        key=lambda x: x["properties"]["svi"],
+        default=None,
+    )
+    povs = sorted(
+        ft["properties"]["poverty_pct"]
+        for ft in features
+        if isinstance(ft["properties"].get("poverty_pct"), (int, float))
+    )
+    summary = {
+        "region": region_key,
+        "county_count": len(features),
+        "scored_count": scored,
+        "mean_svi": mean_svi,
+        "top_county": (top["properties"].get("NAME", "") if top else "").replace(" County", ""),
+        "top_pct": top["properties"].get("svi_percentile") if top else None,
+        "median_poverty": (povs[len(povs) // 2] if povs else None),
+    }
+    with cstore.open_write(cstore.join(out_dir, "svi-summary.json"), "w") as f:
+        f.write(json.dumps(summary))
+
     return SVIResult(
         output_path=svi_path,
         html_path=html_path,
@@ -233,17 +257,60 @@ US_STATE_NAMES = [
 ]
 
 
+def _state_summary(svi_root: str, name: str) -> dict[str, Any] | None:
+    """Return a state's SVI summary — from the tiny svi-summary.json sidecar if
+    present (fast), else computed from the full svi.geojson and backfilled."""
+    sum_path = cstore.join(svi_root, name, "svi-summary.json")
+    if cstore.exists(sum_path):
+        try:
+            with cstore.open_read(sum_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    gj_path = cstore.join(svi_root, name, "svi.geojson")
+    if not cstore.exists(gj_path):
+        return None
+    try:
+        with cstore.open_read(gj_path) as f:
+            fc = json.load(f)
+    except Exception:
+        return None
+    feats = fc.get("features") or []
+    scored = [ft for ft in feats if isinstance(ft["properties"].get("svi"), (int, float))]
+    top = max(scored, key=lambda x: x["properties"]["svi"], default=None)
+    povs = sorted(
+        ft["properties"]["poverty_pct"]
+        for ft in feats
+        if isinstance(ft["properties"].get("poverty_pct"), (int, float))
+    )
+    summary = {
+        "region": name,
+        "county_count": len(feats),
+        "scored_count": len(scored),
+        "top_county": (top["properties"].get("NAME", "") if top else "").replace(" County", ""),
+        "top_pct": top["properties"].get("svi_percentile") if top else None,
+        "median_poverty": (povs[len(povs) // 2] if povs else None),
+    }
+    try:  # backfill the sidecar so the next index build is fast
+        with cstore.open_write(sum_path, "w") as f:
+            f.write(json.dumps(summary))
+    except Exception:
+        pass
+    return summary
+
+
 def build_national_index(
     regions: list[str] | None = None,
     *,
-    title: str = "United States — Social Vulnerability Index",
+    title: str = "United States - Social Vulnerability Index",
     storage=None,
 ) -> tuple[str, int]:
     """Build a national index page linking every per-state SVI map.
 
-    Scans ``output/svi/<state>/svi.geojson`` for each region (default: the 50
-    states + DC), summarizes it, and writes ``output/svi/index.html`` with a
-    sortable table linking to each state's choropleth (``./<state>/index.html``).
+    Reads each state's ``svi-summary.json`` sidecar (KB; written by BuildSVIMap)
+    — falling back to the full ``svi.geojson`` + backfilling the sidecar when
+    absent — and writes ``output/svi/index.html``: a sortable table linking each
+    state's choropleth (``./<state>/index.html``).
 
     Per-state columns: county count, the most-vulnerable county (by within-state
     SVI), and the **median county poverty rate** — a nationally-comparable raw
@@ -255,32 +322,16 @@ def build_national_index(
 
     rows: list[dict[str, Any]] = []
     for name in names:
-        gj_path = cstore.join(svi_root, name, "svi.geojson")
-        if not cstore.exists(gj_path):
+        s = _state_summary(svi_root, name)
+        if s is None:
             continue
-        try:
-            with cstore.open_read(gj_path) as f:
-                fc = json.load(f)
-        except Exception:
-            continue
-        feats = fc.get("features") or []
-        scored = [ft for ft in feats if isinstance(ft["properties"].get("svi"), (int, float))]
-        top = max(scored, key=lambda x: x["properties"]["svi"], default=None)
-        povs = sorted(
-            ft["properties"]["poverty_pct"]
-            for ft in feats
-            if isinstance(ft["properties"].get("poverty_pct"), (int, float))
-        )
-        median_pov = povs[len(povs) // 2] if povs else None
         rows.append(
             {
                 "name": name,
-                "counties": len(feats),
-                "top_county": (top["properties"].get("NAME", "") if top else "").replace(
-                    " County", ""
-                ),
-                "top_pct": top["properties"].get("svi_percentile") if top else None,
-                "median_poverty": median_pov,
+                "counties": s.get("county_count", 0),
+                "top_county": s.get("top_county", ""),
+                "top_pct": s.get("top_pct"),
+                "median_poverty": s.get("median_poverty"),
             }
         )
 
