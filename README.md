@@ -8,6 +8,11 @@ providing FFL workflows and handlers for working with US Census Bureau data:
 - **MongoDB ingestion** — upsert per-state ACS variables and county geometry into `census_*` collections
 - **Per-state summaries** — compute state-level rollups + join census variables to TIGER county geometry for choropleth visualization
 - **Dashboard map** — county-level choropleth in Facetwork's dashboard with switchable variables (density, income, education, commuting, …)
+- **Social Vulnerability Index (SVI)** — compute a 6-indicator CDC/ATSDR-style vulnerability index per county and render a MapLibre choropleth; fan out across all 50 states + DC and link them from a national index page (see [below](#social-vulnerability-index-svi))
+
+Outputs (cache + GeoJSON + maps) follow `AFL_STORAGE`: on the fleet they land in
+shared MinIO (`s3://afl-cache/cache/census-us/`); locally under
+`$AFL_DATA_ROOT`.
 
 Discovered by the Facetwork runner via the `facetwork.examples` entry point
 declared in `pyproject.toml`. After `pip install -e .`, Facetwork's
@@ -55,6 +60,41 @@ The CLIs print a JSON dict on stdout (the same shape the FFL handler
 emits) and a human-readable summary on stderr. They never touch
 Facetwork's runtime, so they're runnable standalone.
 
+## Social Vulnerability Index (SVI)
+
+A county-level vulnerability choropleth, built on the existing download → extract
+→ join chain (`namespace census.Vulnerability`, `tools/_lib/svi.py`).
+
+**Methodology** — six indicators, each "higher = more vulnerable", percentile-
+ranked across the counties in the input and averaged into an SVI in `[0,1]`
+(1 = most vulnerable): below-poverty (B17001), unemployment (B23025),
+no-bachelor's (B15003), aged-65+ (B01001), no-vehicle (B25044), and
+renter-occupied (B25003). Because counties are ranked **within the input set**,
+SVI percentiles are comparable *within* a state but not *across* states; raw
+rates (e.g. poverty %) are nationally comparable.
+
+| FFL | What it does |
+|-----|--------------|
+| `census.Vulnerability.BuildSVIMap(joined_path, region, title)` | Compute the SVI from a `JoinGeo` output GeoJSON + render a MapLibre choropleth (per-component click popups) → `output/svi/<region>/index.html` |
+| `census.workflows.BuildVulnerabilityMap(state_fips, state_name)` | One state, end-to-end: download → extract (incl. age) → join → `BuildSVIMap` |
+| `census.workflows.BuildVulnerabilityMapUS()` | **`andThen foreach`** over all 50 states + DC → one map per state, distributed across the fleet (national TIGER county file downloads once + cache-shares) |
+| `census.Vulnerability.BuildNationalIndex(title)` | Scan `output/svi/<state>/` → write `output/svi/index.html`, a sortable table linking every state map with its most-vulnerable county + median county poverty |
+
+```bash
+# one state
+fw ffl run --primary src/census_us/ffl/census.ffl \
+  $(for f in $(find src/census_us -name '*.ffl' ! -name census.ffl); do echo --library $f; done) \
+  --workflow census.workflows.BuildVulnerabilityMap \
+  --inputs '{"state_fips":"56","state_name":"Wyoming"}' --task-list census
+
+# all 50 states + DC, then the national index
+fw ffl run ... --workflow census.workflows.BuildVulnerabilityMapUS --task-list census
+fw ffl run ... --workflow census.Vulnerability.BuildNationalIndex --task-list census
+```
+
+> **Requires `CENSUS_API_KEY`** — the ACS5 API returns an empty body without it.
+> The downloader appends it to the request (never the cached/returned URL).
+
 ## Required infrastructure
 
 | Service | Purpose |
@@ -77,16 +117,18 @@ fwh_census_us/
 ├── tests/                          # repo-level integration tests
 └── src/census_us/
     ├── __init__.py                 # exports `example: ExamplePackage`
-    ├── handlers/                   # 5 event-facet subpackages
+    ├── handlers/                   # 6 event-facet subpackages
     │   ├── acs/                    # ACS demographic extraction
     │   ├── downloads/              # raw HTTP downloads (ACS + TIGER)
     │   ├── ingestion/              # 15 MongoDB upsert handlers
     │   ├── summary/                # state rollups + geo joins
     │   ├── tiger/                  # TIGER county geometry
+    │   ├── vulnerability/          # SVI compute + choropleth (BuildSVIMap, BuildNationalIndex)
     │   └── shared/census_utils.py  # shim into tools/_lib
     ├── ffl/                        # top-level + per-domain FFL workflows
     └── tools/                      # CLI utilities + _lib/ (real impl)
-        ├── _lib/                   # downloader, acs/tiger extractors, db ingest, summary builder
+        ├── _lib/                   # downloader, acs/tiger extractors, db ingest, summary builder,
+        │                          #   svi (SVI + national index), storage (s3/local-aware)
         ├── *.py                    # one CLI per major operation
         └── *.sh                    # shell wrappers
 ```

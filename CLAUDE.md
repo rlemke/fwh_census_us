@@ -87,6 +87,29 @@ Each module exposes `register_handlers(runner)` for the RegistryRunner;
 all five are wired into `register_all_registry_handlers` in
 `src/census_us/handlers/__init__.py`.
 
+### Gotchas (learned the hard way)
+
+- **GEOID join formats differ.** TIGER county features carry the bare FIPS in
+  `GEOID` (`"56023"`; the prefixed form is in `GEOIDFQ`), but ACS rows carry the
+  prefixed `GEOID` (`"0500000US56023"`). `JoinGeo` normalizes both to bare FIPS
+  via `_norm_geoid()` (`summary_builder.py`) — DO NOT join the two raw `GEOID`
+  fields directly or every ACS column silently fails to merge (geometry-only
+  output).
+- **The default ACS pull is a fixed column list** (`download_acs`). If an
+  `Extract*` handler comes back empty, its table's columns probably aren't in
+  that list (poverty/B17001 + employment/B23025 were missing until added;
+  race/B02001 is still absent). Stay under the API's 50-variable/request cap.
+- **`CENSUS_API_KEY` is required** — ACS5 returns an empty body without it
+  (→ a JSON parse error). The downloader appends it to the *request* URL only,
+  never the cached/returned `url` (keep the secret out of step payloads/Mongo).
+- **Storage is `AFL_STORAGE`-aware** (`_lib/storage.py`): `cache_root()` /
+  `output_root()` resolve under `AFL_DATA_ROOT` (s3:// on the fleet); writers
+  stage-then-finalize, readers `localize()` remote URIs before
+  `open`/`csv`/`zipfile`/`fiona`. Build paths with `cstore.join` (never
+  `os.path.join` — it mangles `s3://`) and check existence with `cstore.exists`.
+- **`AnalyzeState` does NOT join age (B01001)** into its GeoJSON;
+  `BuildVulnerabilityMap` includes it (the SVI's 65+ indicator needs it).
+
 ### Cache layout
 
 Both the CLIs and the FFL handlers read/write the same on-disk cache:
