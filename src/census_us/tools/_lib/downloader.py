@@ -109,6 +109,14 @@ def download_acs(
     dest = cstore.join(cstore.cache_root(), "acs", year, filename)
     url = f"{CENSUS_API_BASE}/{year}/acs/acs5?get=NAME,{columns}&for=county:*&in=state:{state_fips}"
 
+    # The ACS5 API returns an EMPTY body (→ JSON parse error) without an API
+    # key for these multi-column requests. Append it to the REQUEST url only —
+    # never to the returned/cached `url`, so the secret doesn't leak into the
+    # step payload, Mongo, or the dashboard. Set CENSUS_API_KEY in the env
+    # (free key from https://api.census.gov/data/key_signup.html).
+    api_key = os.environ.get("CENSUS_API_KEY", "").strip()
+    request_url = f"{url}&key={api_key}" if api_key else url
+
     requested_cols = {c.strip() for c in columns.split(",")}
 
     lock = _get_lock(dest)
@@ -129,7 +137,7 @@ def download_acs(
             size = cstore.size(dest)
             logger.info("ACS cache hit: %s (%d bytes)", dest, size)
         else:
-            size = _download_acs_api(url, dest, state_fips)
+            size = _download_acs_api(request_url, dest, state_fips)
 
     return {
         "url": url,
