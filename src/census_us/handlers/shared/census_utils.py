@@ -28,6 +28,7 @@ from census_us.tools._lib import (  # noqa: F401
     db_ingest,
     downloader,
     summary_builder,
+    svi,
     tiger_extractor,
 )
 
@@ -48,6 +49,9 @@ from census_us.tools._lib.summary_builder import (  # noqa: F401
     join_geo,
     summarize_state,
 )
+from census_us.tools._lib.svi import (  # noqa: F401
+    build_svi_map,
+)
 from census_us.tools._lib.tiger_extractor import (  # noqa: F401
     extract_tiger,
 )
@@ -58,10 +62,12 @@ __all__ = [
     "db_ingest",
     "downloader",
     "summary_builder",
+    "svi",
     "tiger_extractor",
     # Symbols
     "ACS_TABLES",
     "OutputStore",
+    "build_svi_map",
     "download_acs",
     "download_tiger",
     "extract_acs_table",

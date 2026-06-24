@@ -150,14 +150,27 @@ def _compute_derived_metrics(props: dict[str, Any]) -> dict[str, Any]:
     return derived
 
 
+def _norm_geoid(value: str) -> str:
+    """Normalize a Census GEOID to its bare FIPS digits for joining.
+
+    ACS rows carry the prefixed form ``0500000US56023`` while TIGER county
+    features carry the bare ``56023`` in ``GEOID`` (the prefixed form is in
+    ``GEOIDFQ``). Splitting on ``US`` collapses both to ``56023`` so the join
+    actually matches — without this every ACS column silently fails to merge
+    and the joined GeoJSON ends up geometry-only.
+    """
+    v = (value or "").strip()
+    return v.rsplit("US", 1)[-1] if "US" in v else v
+
+
 def _load_acs_csv(path: str, join_field: str) -> dict[str, dict[str, str]]:
-    """Load an ACS CSV file, returning a dict keyed by join_field."""
+    """Load an ACS CSV file, returning a dict keyed by normalized join_field."""
     data: dict[str, dict[str, str]] = {}
     if path and cstore.exists(path):
         with cstore.open_read(path, newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                key = row.get(join_field, "")
+                key = _norm_geoid(row.get(join_field, ""))
                 if key:
                     data[key] = dict(row)
     return data
@@ -203,7 +216,7 @@ def join_geo(
     joined_features: list[dict[str, Any]] = []
     for feat in features:
         props = feat.get("properties", {})
-        key = props.get(join_field, "")
+        key = _norm_geoid(props.get(join_field, ""))
         if key in acs_data:
             props.update(acs_data[key])
         # Compute population density (people per km²) from TIGER ALAND

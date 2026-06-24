@@ -6,6 +6,7 @@ namespace census.workflows {
     use census.TIGER
     use census.Summary
     use census.Ingestion
+    use census.Vulnerability
 
     /**
      * Downloads ACS and TIGER data for a single state, extracts demographic
@@ -89,5 +90,57 @@ namespace census.workflows {
         alaska = AnalyzeState(state_fips = "02", state_name = "Alaska")
         arizona = AnalyzeState(state_fips = "04", state_name = "Arizona")
         yield AnalyzeStates_03(states_completed = 3)
+    }
+
+    /**
+     * Downloads + extracts the ACS/TIGER tables for a state, joins them onto
+     * county geography (INCLUDING age, which AnalyzeState omits), computes a
+     * 6-indicator Social Vulnerability Index per county, and renders a MapLibre
+     * choropleth shaded by SVI percentile.
+     * @param state_fips FIPS code identifying the state (e.g. "56" for Wyoming)
+     * @param state_name Human-readable state name (map label + output sub-dir)
+     * @returns status   "completed"
+     * @returns html_path Path to the rendered SVI choropleth (s3:// on the fleet)
+     * @returns detail   Counties scored / total
+     */
+    workflow BuildVulnerabilityMap(
+        state_fips: String = "56",
+        state_name: String = "Wyoming"
+    ) => (status: String, html_path: String, detail: String) andThen {
+        acs = DownloadACS(state_fips = $.state_fips)
+        acs_detail = DownloadACSDetailed(state_fips = $.state_fips)
+        tiger = DownloadTIGER(state_fips = $.state_fips, geo_level = "COUNTY")
+        pop = ExtractPopulation(file = acs.file, state_fips = $.state_fips)
+        income = ExtractIncome(file = acs.file, state_fips = $.state_fips)
+        education = ExtractEducation(file = acs.file, state_fips = $.state_fips)
+        tenure = ExtractTenure(file = acs.file, state_fips = $.state_fips)
+        vehicles = ExtractVehicles(file = acs.file, state_fips = $.state_fips)
+        poverty = ExtractPoverty(file = acs.file, state_fips = $.state_fips)
+        employment = ExtractEmployment(file = acs.file, state_fips = $.state_fips)
+        age = ExtractAge(file = acs_detail.file, state_fips = $.state_fips)
+        counties = ExtractCounties(file = tiger.file, state_fips = $.state_fips)
+        joined = JoinGeo(
+            acs_path = pop.result.output_path,
+            tiger_path = counties.result.output_path,
+            extra_acs_paths = [
+                income.result.output_path,
+                education.result.output_path,
+                tenure.result.output_path,
+                vehicles.result.output_path,
+                poverty.result.output_path,
+                employment.result.output_path,
+                age.result.output_path
+            ]
+        )
+        svi = BuildSVIMap(
+            joined_path = joined.result.output_path,
+            region = $.state_name,
+            title = "Social Vulnerability Index: " ++ $.state_name
+        )
+        yield BuildVulnerabilityMap(
+            status = "completed",
+            html_path = svi.html_path,
+            detail = "SVI map: " ++ svi.scored_count ++ " of " ++ svi.county_count ++ " counties scored"
+        )
     }
 }

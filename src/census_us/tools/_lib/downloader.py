@@ -88,7 +88,13 @@ def download_acs(
     "B25044_004E,B25044_005E,B25044_006E,"
     "B25044_007E,B25044_008E,B25044_009E,"
     "B25044_010E,B25044_011E,B25044_012E,"
-    "B25044_013E,B25044_014E,B25044_015E",
+    "B25044_013E,B25044_014E,B25044_015E,"
+    # Poverty (B17001) + employment (B23025) — needed by the SVI and the
+    # Poverty/Employment extracts (previously absent from the default pull, so
+    # those extracts came back empty). Civilian labor force = B23025_003E,
+    # unemployed = B23025_005E.
+    "B17001_001E,B17001_002E,"
+    "B23025_003E,B23025_005E",
     tag: str = "default",
 ) -> dict[str, Any]:
     """Download ACS data for a state via the Census Bureau REST API.
