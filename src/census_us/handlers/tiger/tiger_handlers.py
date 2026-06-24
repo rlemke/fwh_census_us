@@ -14,6 +14,7 @@ NAMESPACE = "census.TIGER"
 # Facet name → TIGER geo_level
 _FACET_GEO_MAP = {
     "ExtractCounties": "COUNTY",
+    "ExtractStates": "STATE",
     "ExtractTracts": "TRACT",
     "ExtractBlockGroups": "BG",
     "ExtractPlaces": "PLACE",

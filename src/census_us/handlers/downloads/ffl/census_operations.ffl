@@ -51,4 +51,9 @@ namespace census.Operations {
      * @returns file Downloaded detailed ACS file with cache metadata
      */
     event facet DownloadACSDetailed(state_fips: String) => (file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
+    /** Download the "social" ACS batch (full B15003 education ladder + Gini
+      * B19083 + SNAP B19058 + health insurance B27001) for a state's counties.
+      * A separate request because the default batch is near the 50-variable cap. */
+    event facet DownloadACSSocial(state_fips: String) => (file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 }

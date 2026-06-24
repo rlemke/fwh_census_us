@@ -32,12 +32,20 @@ except ImportError:
     HAS_PYSHP = False
 
 # Geography level → TIGER file component and FIPS field name
-_GEO_CONFIG: dict[str, dict[str, str]] = {
+_GEO_CONFIG: dict[str, dict[str, str | None]] = {
     "COUNTY": {"suffix": "county", "fips_field": "STATEFP"},
+    # STATE: national file, no per-state filter (keep all 50 states + DC).
+    "STATE": {"suffix": "state", "fips_field": None},
     "TRACT": {"suffix": "tract", "fips_field": "STATEFP"},
     "BG": {"suffix": "bg", "fips_field": "STATEFP"},
     "PLACE": {"suffix": "place", "fips_field": "STATEFP"},
 }
+
+
+def _match(props: dict, fips_field: str | None, state_fips: str) -> bool:
+    """Keep a feature: no filter when fips_field is None (e.g. STATE), else the
+    feature's state FIPS must equal state_fips."""
+    return fips_field is None or props.get(fips_field) == state_fips
 
 
 
@@ -90,7 +98,7 @@ def extract_tiger(
             with fiona.open(f"zip://{local_zip}") as src:
                 for feature in src:
                     props = feature.get("properties", {})
-                    if props.get(config["fips_field"]) == state_fips:
+                    if _match(props, config["fips_field"], state_fips):
                         features.append(
                             {
                                 "type": "Feature",
@@ -105,7 +113,7 @@ def extract_tiger(
             reader = shapefile.Reader(local_zip)
             for sr in reader.shapeRecords():
                 props = sr.record.as_dict()
-                if props.get(config["fips_field"]) == state_fips:
+                if _match(props, config["fips_field"], state_fips):
                     geo = sr.shape.__geo_interface__
                     if geo.get("type") != "Null":
                         features.append(
@@ -127,7 +135,7 @@ def extract_tiger(
                         data = json.load(f)
                         for feat in data.get("features", []):
                             props = feat.get("properties", {})
-                            if props.get(config["fips_field"]) == state_fips:
+                            if _match(props, config["fips_field"], state_fips):
                                 features.append(feat)
         except (zipfile.BadZipFile, json.JSONDecodeError) as exc:
             logger.warning("Failed to read TIGER ZIP %s: %s", zip_path, exc)

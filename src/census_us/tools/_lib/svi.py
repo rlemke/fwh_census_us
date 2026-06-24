@@ -35,20 +35,15 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from census_us.tools._lib import metrics
 from census_us.tools._lib import storage as cstore
 
 NAMESPACE = "census"
 CACHE_TYPE = "svi"
 
-# Indicator keys in vulnerability order (all: higher value → more vulnerable).
-INDICATORS = [
-    ("poverty_pct", "Below poverty"),
-    ("unemployment_pct", "Unemployment"),
-    ("no_bachelors_pct", "No bachelor's degree"),
-    ("elderly_pct", "Aged 65+"),
-    ("no_vehicle_pct", "No vehicle"),
-    ("renter_pct", "Renter-occupied"),
-]
+# The SVI indicator set is the registry's in_svi metrics (all oriented so
+# higher value → more vulnerable). (key, label) pairs, in registry order.
+INDICATORS = [(m.key, m.label) for m in metrics.SVI_METRICS]
 
 # YlOrRd sequential ramp for the choropleth (low → high vulnerability).
 _RAMP = [
@@ -91,34 +86,9 @@ def _rate(num: float | None, den: float | None, scale: float = 100.0) -> float |
 
 
 def _indicators(props: dict[str, Any]) -> dict[str, float | None]:
-    """Compute the 6 raw indicator percentages for one county."""
-    out: dict[str, float | None] = {}
-
-    out["poverty_pct"] = props.get("pct_below_poverty")
-    if out["poverty_pct"] is None:
-        out["poverty_pct"] = _rate(_num(props, "B17001_002E"), _num(props, "B17001_001E"))
-
-    # unemployed (B23025_005E) / civilian labor force (B23025_003E)
-    out["unemployment_pct"] = _rate(_num(props, "B23025_005E"), _num(props, "B23025_003E"))
-
-    bach = props.get("pct_bachelors_plus")
-    out["no_bachelors_pct"] = round(100.0 - bach, 2) if isinstance(bach, (int, float)) else None
-
-    # 65+ = male bands B01001_020E..025E + female B01001_044E..049E over total _001E
-    male65 = [_num(props, f"B01001_{i:03d}E") for i in range(20, 26)]
-    fem65 = [_num(props, f"B01001_{i:03d}E") for i in range(44, 50)]
-    elders = sum(v for v in male65 + fem65 if v is not None)
-    out["elderly_pct"] = _rate(elders, _num(props, "B01001_001E"))
-
-    # no-vehicle households: owner-0 (B25044_003E) + renter-0 (B25044_010E) over total (_001E)
-    no_veh = (_num(props, "B25044_003E") or 0.0) + (_num(props, "B25044_010E") or 0.0)
-    out["no_vehicle_pct"] = _rate(no_veh, _num(props, "B25044_001E"))
-
-    out["renter_pct"] = props.get("pct_renter_occupied")
-    if out["renter_pct"] is None:
-        out["renter_pct"] = _rate(_num(props, "B25003_003E"), _num(props, "B25003_001E"))
-
-    return out
+    """Compute the SVI indicator values for one county, via the metric registry
+    (all in_svi metrics, keyed by metric key — e.g. poverty, less_than_hs, gini)."""
+    return {m.key: metrics.compute_metric(props, m) for m in metrics.SVI_METRICS}
 
 
 def _percentile_ranks(values: list[float | None]) -> list[float | None]:

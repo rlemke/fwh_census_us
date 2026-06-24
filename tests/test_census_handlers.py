@@ -50,7 +50,7 @@ def _census_import(module_name: str):
 class TestDownloadHandlers:
     def test_dispatch_keys(self):
         mod = _census_import("downloads.download_handlers")
-        assert len(mod._DISPATCH) == 3
+        assert len(mod._DISPATCH) == 4
         assert "census.Operations.DownloadACS" in mod._DISPATCH
         assert "census.Operations.DownloadTIGER" in mod._DISPATCH
         assert "census.Operations.DownloadACSDetailed" in mod._DISPATCH
@@ -84,7 +84,7 @@ class TestDownloadHandlers:
         mod = _census_import("downloads.download_handlers")
         runner = MagicMock()
         mod.register_handlers(runner)
-        assert runner.register_handler.call_count == 3
+        assert runner.register_handler.call_count == 4
 
     def test_handle_download_acs_detailed(self):
         mod = _census_import("downloads.download_handlers")
@@ -143,7 +143,7 @@ class TestDownloadHandlers:
 class TestACSHandlers:
     def test_dispatch_keys(self):
         mod = _census_import("acs.acs_handlers")
-        assert len(mod._DISPATCH) == 12
+        assert len(mod._DISPATCH) == 15
         for key in mod._DISPATCH:
             assert key.startswith("census.ACS.")
 
@@ -169,7 +169,7 @@ class TestACSHandlers:
         mod = _census_import("acs.acs_handlers")
         runner = MagicMock()
         mod.register_handlers(runner)
-        assert runner.register_handler.call_count == 12
+        assert runner.register_handler.call_count == 15
 
     def test_extract_population(self):
         mod = _census_import("acs.acs_handlers")
@@ -391,7 +391,7 @@ class TestACSHandlers:
 class TestTIGERHandlers:
     def test_dispatch_keys(self):
         mod = _census_import("tiger.tiger_handlers")
-        assert len(mod._DISPATCH) == 4
+        assert len(mod._DISPATCH) == 5
         for key in mod._DISPATCH:
             assert key.startswith("census.TIGER.")
 
@@ -417,7 +417,7 @@ class TestTIGERHandlers:
         mod = _census_import("tiger.tiger_handlers")
         runner = MagicMock()
         mod.register_handlers(runner)
-        assert runner.register_handler.call_count == 4
+        assert runner.register_handler.call_count == 5
 
     def test_extract_counties(self):
         mod = _census_import("tiger.tiger_handlers")
@@ -1089,10 +1089,10 @@ class TestInitRegistryHandlers:
         runner = MagicMock()
         mod.register_all_registry_handlers(runner)
         # 3 downloads + 12 ACS + 4 TIGER + 2 summary + 15 ingestion + 2 vocab = 38
-        assert runner.register_handler.call_count == 40
+        assert runner.register_handler.call_count == 47
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
         poller = MagicMock()
         mod.register_all_handlers(poller)
-        assert poller.register.call_count == 40
+        assert poller.register.call_count == 47

@@ -34,13 +34,14 @@ TIGER_BASE = "https://www2.census.gov/geo/tiger"
 # TIGER geo_level -> directory and file suffix mapping
 _TIGER_GEO = {
     "COUNTY": ("COUNTY", "county"),
+    "STATE": ("STATE", "state"),
     "TRACT": ("TRACT", "tract"),
     "BG": ("BG", "bg"),
     "PLACE": ("PLACE", "place"),
 }
 
 # TIGER geo_levels that use a national file (us) instead of per-state
-_TIGER_NATIONAL_GEO = {"COUNTY"}
+_TIGER_NATIONAL_GEO = {"COUNTY", "STATE"}
 
 
 def _get_lock(path: str) -> threading.Lock:
@@ -96,6 +97,7 @@ def download_acs(
     "B17001_001E,B17001_002E,"
     "B23025_003E,B23025_005E",
     tag: str = "default",
+    geo: str = "county",
 ) -> dict[str, Any]:
     """Download ACS data for a state via the Census Bureau REST API.
 
@@ -105,15 +107,22 @@ def download_acs(
     Args:
         year: ACS survey year.
         period: Survey period.
-        state_fips: Two-digit state FIPS code.
+        state_fips: Two-digit state FIPS code (ignored when geo="state").
         columns: Comma-separated list of ACS estimate columns.
         tag: Cache filename tag for differentiating downloads.
+        geo: "county" (all counties in state_fips) or "state" (all 50 states +
+            DC, for national rankings). State rows key on the "0400000US<st>"
+            GEOID; county rows on "0500000US<st><cty>".
 
     Returns a CensusFile dict with url, path, date, size, wasInCache.
     """
     filename = f"acs_{year}_{state_fips}_{tag}.csv"
     dest = cstore.join(cstore.cache_root(), "acs", year, filename)
-    url = f"{CENSUS_API_BASE}/{year}/acs/acs5?get=NAME,{columns}&for=county:*&in=state:{state_fips}"
+    if geo == "state":
+        for_clause = "&for=state:*"
+    else:
+        for_clause = f"&for=county:*&in=state:{state_fips}"
+    url = f"{CENSUS_API_BASE}/{year}/acs/acs5?get=NAME,{columns}{for_clause}"
 
     # The ACS5 API returns an EMPTY body (→ JSON parse error) without an API
     # key for these multi-column requests. Append it to the REQUEST url only —
@@ -143,7 +152,7 @@ def download_acs(
             size = cstore.size(dest)
             logger.info("ACS cache hit: %s (%d bytes)", dest, size)
         else:
-            size = _download_acs_api(request_url, dest, state_fips)
+            size = _download_acs_api(request_url, dest, state_fips, geo=geo)
 
     return {
         "url": url,
@@ -154,7 +163,7 @@ def download_acs(
     }
 
 
-def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
+def _download_acs_api(url: str, dest: str, state_fips: str, geo: str = "county") -> int:
     """Fetch ACS data from Census API and write as CSV."""
     if not HAS_REQUESTS:
         raise RuntimeError("requests library required for downloads")
@@ -172,11 +181,10 @@ def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
     header = data[0]
     rows = data[1:]
 
-    # Find column indices
     name_idx = header.index("NAME")
     state_idx = header.index("state")
-    county_idx = header.index("county")
-    # Data columns are everything except NAME, state, county
+    county_idx = header.index("county") if geo == "county" else -1
+    # Data columns are everything except NAME + the geography key columns
     skip = {"NAME", "state", "county"}
     data_cols = [c for c in header if c not in skip]
 
@@ -185,8 +193,10 @@ def _download_acs_api(url: str, dest: str, state_fips: str) -> int:
         writer.writerow(["GEOID", "NAME"] + data_cols)
         for row in rows:
             st = row[state_idx]
-            cty = row[county_idx]
-            geoid = f"0500000US{st}{cty}"
+            if geo == "state":
+                geoid = f"0400000US{st}"
+            else:
+                geoid = f"0500000US{st}{row[county_idx]}"
             name = row[name_idx]
             values = [row[header.index(c)] for c in data_cols]
             writer.writerow([geoid, name] + values)

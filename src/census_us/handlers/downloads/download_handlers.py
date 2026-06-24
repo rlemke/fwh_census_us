@@ -7,9 +7,13 @@ to the shared downloader module.
 import os
 from typing import Any
 
-from ..shared.census_utils import download_acs, download_tiger
+from ..shared.census_utils import ACS_TABLES, download_acs, download_tiger
 
 NAMESPACE = "census.Operations"
+
+# Tables that ride the separate "social" batch (the default batch is already
+# near the API's 50-variable cap). Full B15003 ladder + Gini + SNAP + insurance.
+_SOCIAL_TABLES = ["B15003", "B19083", "B19058", "B27001"]
 
 
 def handle_download_acs(params: dict[str, Any]) -> dict[str, Any]:
@@ -101,11 +105,46 @@ def handle_download_acs_detailed(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_acs_social(params: dict[str, Any]) -> dict[str, Any]:
+    """Download the 'social' ACS batch for a state's counties.
+
+    Full B15003 education ladder + Gini (B19083) + SNAP/public assistance
+    (B19058) + health insurance (B27001) — the columns the education, Gini,
+    SNAP, and uninsured metrics need. A separate request because the default
+    batch is already near the API's 50-variable cap.
+
+    Params:
+        state_fips: Two-digit FIPS code
+    """
+    state_fips = params["state_fips"]
+    step_log = params.get("_step_log")
+
+    cols: list[str] = []
+    for t in _SOCIAL_TABLES:
+        cols.extend(ACS_TABLES[t]["columns"])
+    columns = ",".join(cols)
+
+    try:
+        result = download_acs(state_fips=state_fips, columns=columns, tag="social")
+        source = "cache" if result["wasInCache"] else "download"
+        if step_log:
+            step_log(
+                f"DownloadACSSocial: state={state_fips} ({len(cols)} vars, {source})",
+                level="success",
+            )
+        return {"file": result}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadACSSocial: {exc}", level="error")
+        raise
+
+
 # RegistryRunner dispatch adapter
 _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACS": handle_download_acs,
     f"{NAMESPACE}.DownloadTIGER": handle_download_tiger,
     f"{NAMESPACE}.DownloadACSDetailed": handle_download_acs_detailed,
+    f"{NAMESPACE}.DownloadACSSocial": handle_download_acs_social,
 }
 
 

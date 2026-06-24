@@ -212,4 +212,115 @@ namespace census.workflows {
             state_count = idx.state_count
         )
     }
+
+    /**
+     * One state, end-to-end: download the default + detailed (age) + social
+     * (full education, Gini, SNAP, insurance) ACS batches + TIGER counties,
+     * extract every table, join onto county geometry, and render a per-state
+     * multi-metric county choropleth (dropdown over all 13 metrics + SVI).
+     * Also writes a metrics-summary.json (state-level values) for the rankings.
+     * @returns html_path This state's multi-metric map
+     */
+    workflow BuildStateMetricsMap(
+        state_fips: String = "56",
+        state_name: String = "Wyoming"
+    ) => (status: String, html_path: String, detail: String) andThen {
+        acs = DownloadACS(state_fips = $.state_fips)
+        acs_detail = DownloadACSDetailed(state_fips = $.state_fips)
+        acs_social = DownloadACSSocial(state_fips = $.state_fips)
+        tiger = DownloadTIGER(state_fips = $.state_fips, geo_level = "COUNTY")
+        pop = ExtractPopulation(file = acs.file, state_fips = $.state_fips)
+        income = ExtractIncome(file = acs.file, state_fips = $.state_fips)
+        tenure = ExtractTenure(file = acs.file, state_fips = $.state_fips)
+        vehicles = ExtractVehicles(file = acs.file, state_fips = $.state_fips)
+        poverty = ExtractPoverty(file = acs.file, state_fips = $.state_fips)
+        employment = ExtractEmployment(file = acs.file, state_fips = $.state_fips)
+        age = ExtractAge(file = acs_detail.file, state_fips = $.state_fips)
+        education = ExtractEducation(file = acs_social.file, state_fips = $.state_fips)
+        gini = ExtractGini(file = acs_social.file, state_fips = $.state_fips)
+        snap = ExtractSnap(file = acs_social.file, state_fips = $.state_fips)
+        insurance = ExtractInsurance(file = acs_social.file, state_fips = $.state_fips)
+        counties = ExtractCounties(file = tiger.file, state_fips = $.state_fips)
+        joined = JoinGeo(
+            acs_path = pop.result.output_path,
+            tiger_path = counties.result.output_path,
+            extra_acs_paths = [
+                income.result.output_path, tenure.result.output_path,
+                vehicles.result.output_path, poverty.result.output_path,
+                employment.result.output_path, age.result.output_path,
+                education.result.output_path, gini.result.output_path,
+                snap.result.output_path, insurance.result.output_path
+            ]
+        )
+        map = BuildMetricsMap(
+            joined_path = joined.result.output_path,
+            region = $.state_name,
+            title = "Census metrics: " ++ $.state_name
+        )
+        yield BuildStateMetricsMap(
+            status = "completed",
+            html_path = map.html_path,
+            detail = "metrics map: " ++ map.county_count ++ " counties"
+        )
+    }
+
+    /**
+     * Nationwide fan-out: a per-state multi-metric map for all 50 states + DC
+     * (andThen foreach → distributed across the fleet). Writes the per-state
+     * metrics-summary.json files BuildRankings consumes.
+     */
+    workflow BuildStateMetricsMapUS(
+        states: Json = [
+            #{"fips": "01", "name": "Alabama"}, #{"fips": "02", "name": "Alaska"},
+            #{"fips": "04", "name": "Arizona"}, #{"fips": "05", "name": "Arkansas"},
+            #{"fips": "06", "name": "California"}, #{"fips": "08", "name": "Colorado"},
+            #{"fips": "09", "name": "Connecticut"}, #{"fips": "10", "name": "Delaware"},
+            #{"fips": "11", "name": "District of Columbia"}, #{"fips": "12", "name": "Florida"},
+            #{"fips": "13", "name": "Georgia"}, #{"fips": "15", "name": "Hawaii"},
+            #{"fips": "16", "name": "Idaho"}, #{"fips": "17", "name": "Illinois"},
+            #{"fips": "18", "name": "Indiana"}, #{"fips": "19", "name": "Iowa"},
+            #{"fips": "20", "name": "Kansas"}, #{"fips": "21", "name": "Kentucky"},
+            #{"fips": "22", "name": "Louisiana"}, #{"fips": "23", "name": "Maine"},
+            #{"fips": "24", "name": "Maryland"}, #{"fips": "25", "name": "Massachusetts"},
+            #{"fips": "26", "name": "Michigan"}, #{"fips": "27", "name": "Minnesota"},
+            #{"fips": "28", "name": "Mississippi"}, #{"fips": "29", "name": "Missouri"},
+            #{"fips": "30", "name": "Montana"}, #{"fips": "31", "name": "Nebraska"},
+            #{"fips": "32", "name": "Nevada"}, #{"fips": "33", "name": "New Hampshire"},
+            #{"fips": "34", "name": "New Jersey"}, #{"fips": "35", "name": "New Mexico"},
+            #{"fips": "36", "name": "New York"}, #{"fips": "37", "name": "North Carolina"},
+            #{"fips": "38", "name": "North Dakota"}, #{"fips": "39", "name": "Ohio"},
+            #{"fips": "40", "name": "Oklahoma"}, #{"fips": "41", "name": "Oregon"},
+            #{"fips": "42", "name": "Pennsylvania"}, #{"fips": "44", "name": "Rhode Island"},
+            #{"fips": "45", "name": "South Carolina"}, #{"fips": "46", "name": "South Dakota"},
+            #{"fips": "47", "name": "Tennessee"}, #{"fips": "48", "name": "Texas"},
+            #{"fips": "49", "name": "Utah"}, #{"fips": "50", "name": "Vermont"},
+            #{"fips": "51", "name": "Virginia"}, #{"fips": "53", "name": "Washington"},
+            #{"fips": "54", "name": "West Virginia"}, #{"fips": "55", "name": "Wisconsin"},
+            #{"fips": "56", "name": "Wyoming"}
+        ]
+    ) => (status: String, html_path: String, state_name: String) andThen foreach st in $.states {
+        map = BuildStateMetricsMap(state_fips = $.st.fips, state_name = $.st.name)
+        yield BuildStateMetricsMapUS(
+            status = map.status, html_path = map.html_path, state_name = $.st.name
+        )
+    }
+
+    /**
+     * National rankings: download + extract TIGER state geometry, then build the
+     * rankings table + per-metric national choropleths from the per-state
+     * metrics-summary.json files (run BuildStateMetricsMapUS first).
+     * @returns html_path The national rankings page
+     */
+    workflow BuildRankings(
+        title: String = "US state rankings"
+    ) => (status: String, html_path: String, state_count: Long) andThen {
+        tiger_state = DownloadTIGER(state_fips = "us", geo_level = "STATE")
+        states = ExtractStates(file = tiger_state.file, state_fips = "us")
+        rankings = BuildNationalRankings(title = $.title)
+        yield BuildRankings(
+            status = "completed",
+            html_path = rankings.html_path,
+            state_count = rankings.state_count
+        )
+    }
 }

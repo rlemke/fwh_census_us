@@ -23,7 +23,11 @@ ACS_TABLES: dict[str, dict] = {
     "B25001": {"label": "Housing Units", "columns": ["B25001_001E"]},
     "B15003": {
         "label": "Educational Attainment",
-        "columns": ["B15003_001E", "B15003_022E", "B15003_023E", "B15003_024E", "B15003_025E"],
+        # Full attainment ladder: _001 total, _002-016 < high school, _017-018
+        # HS diploma/GED, _019-021 some college/associate, _022 bachelor's,
+        # _023-025 master's/professional/doctorate. Needed for less-than-HS,
+        # HS-only, no-bachelor's, and graduate-degree metrics.
+        "columns": [f"B15003_{i:03d}E" for i in range(1, 26)],
     },
     "B08301": {
         "label": "Means of Transportation",
@@ -98,6 +102,28 @@ ACS_TABLES: dict[str, dict] = {
             "B23025_005E",
             "B23025_006E",
             "B23025_007E",
+        ],
+    },
+    "B19083": {
+        "label": "Gini Index of Income Inequality",
+        "columns": ["B19083_001E"],
+    },
+    "B19058": {
+        "label": "Public Assistance / SNAP",
+        "columns": ["B19058_001E", "B19058_002E", "B19058_003E"],
+    },
+    "B27001": {
+        "label": "Health Insurance Coverage",
+        # _001 total + the 18 "No health insurance coverage" cells (male+female,
+        # all age bands) → uninsured rate. The full table is 57 cols; we keep
+        # only the total + the no-coverage cells the uninsured metric needs.
+        "columns": ["B27001_001E"]
+        + [
+            "B27001_005E", "B27001_008E", "B27001_011E", "B27001_014E",
+            "B27001_017E", "B27001_020E", "B27001_023E", "B27001_026E",
+            "B27001_029E", "B27001_033E", "B27001_036E", "B27001_039E",
+            "B27001_042E", "B27001_045E", "B27001_048E", "B27001_051E",
+            "B27001_054E", "B27001_057E",
         ],
     },
 }

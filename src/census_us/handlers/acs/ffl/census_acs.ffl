@@ -109,4 +109,13 @@ namespace census.ACS {
      * @returns result Employment extraction with record counts
      */
     event facet ExtractEmployment(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
+
+    /** Extract the Gini index of income inequality (B19083). */
+    event facet ExtractGini(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
+
+    /** Extract SNAP / public-assistance receipt (B19058). */
+    event facet ExtractSnap(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
+
+    /** Extract health-insurance coverage (B27001 — total + no-coverage cells). */
+    event facet ExtractInsurance(file: CensusFile, state_fips: String, geo_level: String = "county") => (result: ACSResult) with Effect(kind = "io") with Cost(tier = "cheap")
 }

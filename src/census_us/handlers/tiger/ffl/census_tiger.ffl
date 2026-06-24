@@ -10,6 +10,10 @@ namespace census.TIGER {
      */
     event facet ExtractCounties(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
 
+    /** Extract all 50 state + DC polygons from the national TIGER state file
+      * (no per-state filter; pass state_fips="us"). For national choropleths. */
+    event facet ExtractStates(file: CensusFile, state_fips: String) => (result: TIGERResult) with Effect(kind = "io") with Cost(tier = "cheap")
+
     /**
      * Extracts census tract boundaries from a TIGER/Line shapefile.
      * @param file Downloaded TIGER shapefile
