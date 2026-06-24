@@ -41,6 +41,15 @@ def handle_publish_web_bundle(params: dict[str, Any]) -> dict[str, Any]:
     landing_title = params.get("landing_title", "Facetwork statistics") or "Facetwork statistics"
     include = params.get("include") or []
     labels = params.get("labels") or []
+    # descriptions: a JSON object {section: text, "": root_text} (section = the
+    # first dest path segment, e.g. "world"/"census"); empty key = root landing.
+    descriptions = params.get("descriptions") or {}
+    if isinstance(descriptions, str):
+        import json as _json
+        try:
+            descriptions = _json.loads(descriptions) if descriptions.strip() else {}
+        except ValueError:
+            descriptions = {}
     step_log = params.get("_step_log")
     if not repo:
         raise ValueError("PublishWebBundle requires repo ('owner/name')")
@@ -48,7 +57,7 @@ def handle_publish_web_bundle(params: dict[str, Any]) -> dict[str, Any]:
         res = publish_bundles(
             repo, list(prefixes), list(dests),
             branch=branch, landing_title=landing_title, include=list(include),
-            labels=list(labels),
+            labels=list(labels), descriptions=dict(descriptions),
         )
         if step_log:
             step_log(

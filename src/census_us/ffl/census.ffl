@@ -371,7 +371,8 @@ namespace census.workflows {
         labels: [String] = [],
         branch: String = "main",
         include: [String] = [".html"],
-        landing_title: String = "Facetwork maps"
+        landing_title: String = "Facetwork maps",
+        descriptions: String = ""
     ) => (status: String, pages_url: String, file_count: Long) andThen {
         published = PublishWebBundle(
             repo = $.repo,
@@ -380,7 +381,8 @@ namespace census.workflows {
             branch = $.branch,
             landing_title = $.landing_title,
             include = $.include,
-            labels = $.labels
+            labels = $.labels,
+            descriptions = $.descriptions
         )
         yield PublishToSite(
             status = "completed",

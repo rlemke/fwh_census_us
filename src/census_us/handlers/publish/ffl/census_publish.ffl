@@ -20,7 +20,8 @@ namespace census.Publish {
         branch: String = "main",
         landing_title: String = "Facetwork statistics",
         include: [String] = [],
-        labels: [String] = []
+        labels: [String] = [],
+        descriptions: String = ""
     ) => (
         pages_url: String,
         file_count: Long,

@@ -111,8 +111,13 @@ _HTML_HEAD = (
     "padding:0 1rem;line-height:1.6}}h1{{font-size:1.5rem}}h2{{font-size:1.1rem;margin:1.4rem 0 .3rem}}"
     "h2 a{{color:#222;text-decoration:none}}h2 a:hover{{text-decoration:underline}}"
     "a{{color:#0645ad;text-decoration:none}}a:hover{{text-decoration:underline}}li{{margin:.35rem 0}}"
+    "p.desc{{color:#444;margin:.2rem 0 1.1rem;font-size:.97rem}}"
     "</style>\n</head><body>\n<h1>{title}</h1>\n"
 )
+
+
+def _desc_html(description: str) -> str:
+    return f'<p class="desc">{escape(description)}</p>\n' if description else ""
 _HTML_FOOT = "<p style=\"color:#888;font-size:.85rem;margin-top:1.5rem\">Published from Facetwork.</p>\n</body></html>\n"
 
 
@@ -122,15 +127,18 @@ def _strip_section_suffix(label: str) -> str:
     return label[:i].strip() if (i > 0 and label.rstrip().endswith(")")) else label
 
 
-def _landing_html(title: str, links: list[tuple[str, str]]) -> str:
+def _landing_html(title: str, links: list[tuple[str, str]], description: str = "") -> str:
     items = "\n".join(
         f'  <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
         for label, dest in links
     )
-    return _HTML_HEAD.format(title=escape(title)) + f"<ul>\n{items}\n</ul>\n" + _HTML_FOOT
+    return (_HTML_HEAD.format(title=escape(title)) + _desc_html(description)
+            + f"<ul>\n{items}\n</ul>\n" + _HTML_FOOT)
 
 
-def _grouped_landing_html(title: str, sections: dict[str, list[tuple[str, str]]]) -> str:
+def _grouped_landing_html(
+    title: str, sections: dict[str, list[tuple[str, str]]], description: str = ""
+) -> str:
     """Root landing grouped by top-level section; each heading links its section index."""
     blocks = []
     for sec, items in sections.items():
@@ -143,7 +151,8 @@ def _grouped_landing_html(title: str, sections: dict[str, list[tuple[str, str]]]
             blocks.append(f'<h2><a href="{escape(sec)}/index.html">{escape(pretty)}</a></h2>\n<ul>\n{lis}\n</ul>')
         else:
             blocks.append(f"<ul>\n{lis}\n</ul>")
-    return _HTML_HEAD.format(title=escape(title)) + "\n".join(blocks) + "\n" + _HTML_FOOT
+    return (_HTML_HEAD.format(title=escape(title)) + _desc_html(description)
+            + "\n".join(blocks) + "\n" + _HTML_FOOT)
 
 
 def _ensure_pages(repo: str, branch: str, token: str) -> None:
@@ -177,6 +186,7 @@ def publish_bundles(
     landing_title: str = "Facetwork statistics",
     include: list[str] | None = None,
     labels: list[str] | None = None,
+    descriptions: dict[str, str] | None = None,
     token: str | None = None,
 ) -> PublishResult:
     """Publish each ``prefixes[i]`` into ``repo`` at ``dests[i]``; push once.
@@ -243,6 +253,7 @@ def publish_bundles(
             sections.setdefault(sec, []).append((label, dest))
         # Per-section index page (e.g. world/index.html links the world maps),
         # with section-relative hrefs + the redundant "(section)" suffix stripped.
+        desc = descriptions or {}
         for sec, items in sections.items():
             if not sec:
                 continue
@@ -251,10 +262,10 @@ def publish_bundles(
             rel = [(_strip_section_suffix(lbl), dst.split("/", 1)[1]) for lbl, dst in items]
             pretty = sec.replace("-", " ").replace("_", " ").title()
             with open(os.path.join(sec_dir, "index.html"), "w", encoding="utf-8") as f:
-                f.write(_landing_html(f"{landing_title} - {pretty}", rel))
+                f.write(_landing_html(f"{pretty} maps", rel, description=desc.get(sec, "")))
         # Root landing, grouped by section (each heading links its section index).
         with open(os.path.join(repo_dir, "index.html"), "w", encoding="utf-8") as f:
-            f.write(_grouped_landing_html(landing_title, sections))
+            f.write(_grouped_landing_html(landing_title, sections, description=desc.get("", "")))
 
         _run(["git", "add", "-A"], cwd=repo_dir, env=env)
         commit = _run(["git", "commit", "-q", "-m",
