@@ -32,6 +32,7 @@ def footer_html(workflow: str, ffl_url: str = CENSUS_FFL_URL, params: dict | Non
         kv = ", ".join(f"{k}={v}" for k, v in params.items() if v not in (None, ""))
         if kv:
             call = f"{workflow}({kv})"
+    repo_url = ffl_url.split("/blob/")[0] if "/blob/" in ffl_url else ffl_url
     return (
         '<div style="position:fixed;bottom:10px;left:10px;z-index:9999;'
         "background:rgba(255,255,255,0.92);border-radius:6px;padding:6px 10px;"
@@ -41,5 +42,7 @@ def footer_html(workflow: str, ffl_url: str = CENSUS_FFL_URL, params: dict | Non
         f'<code style="background:#f0f0f0;padding:0 3px;border-radius:3px">{escape(call)}</code>'
         f' &middot; <a href="{escape(ffl_url)}" target="_blank" rel="noopener" '
         'style="color:#1565c0;text-decoration:none">view FFL</a>'
+        f' &middot; <a href="{escape(repo_url)}" target="_blank" rel="noopener" '
+        'style="color:#1565c0;text-decoration:none">source repo</a>'
         f" &middot; generated {_now()}</div>"
     )
