@@ -472,19 +472,22 @@ def build_metrics_index(
  .wrap{{padding:16px 22px}} table{{border-collapse:collapse;background:#fff;max-width:680px;width:100%;box-shadow:0 1px 3px rgba(0,0,0,.12)}}
  th,td{{padding:7px 12px;border-bottom:1px solid #eee;font-size:13px;text-align:left}} th{{background:#f3f3f3;cursor:pointer}}
  td.n,th.n{{text-align:right}} a{{color:#0645ad;text-decoration:none}} a:hover{{text-decoration:underline}}
+ {mapsearch.table_filter_css()}
 </style></head><body>
 <header><h1>{title}</h1><p>Click a state for its county map with a dropdown over all 13 census
 metrics + the Social Vulnerability Index ("dark = worse"). Data: US Census ACS 2023 + TIGER.</p></header>
-<div class="wrap"><table id="t"><thead><tr>
+<div class="wrap">{mapsearch.table_filter_html("Filter states…")}
+<table id="t"><thead><tr>
  <th onclick="s(0,'s')">State</th><th class="n" onclick="s(1,'v')">Median income</th>
  <th class="n" onclick="s(2,'v')">Poverty</th><th class="n" onclick="s(3,'v')">Uninsured</th>
 </tr></thead><tbody>
-{body}</tbody></table><p style="color:#666;font-size:12px;margin-top:10px">{len(rows)} state maps</p></div>
+{body}</tbody></table><p id="cnt" style="color:#666;font-size:12px;margin-top:10px">{len(rows)} state maps</p></div>
 <script>
 function s(c,k){{const tb=document.querySelector('#t tbody');const rs=[...tb.rows];
  const d=tb.dataset.c==c&&tb.dataset.d=='1'?-1:1;
  rs.sort((a,b)=>k=='v'?d*((+a.cells[c].dataset.v)-(+b.cells[c].dataset.v)):d*a.cells[c].textContent.localeCompare(b.cells[c].textContent));
  rs.forEach(r=>tb.appendChild(r));tb.dataset.c=c;tb.dataset.d=d==1?'1':'0';}}
+{mapsearch.table_filter_js("t", 0, count_id="cnt")}
 </script>{_attr}</body></html>"""
     index_path = cstore.join(root, "index.html")
     with cstore.open_write(index_path, "w") as f:

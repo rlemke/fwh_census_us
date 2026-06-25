@@ -53,3 +53,46 @@ def search_js(name_field: str = "NAME") -> str:
         "document.addEventListener('click',e=>{if(!e.target.closest('.rsearch'))res.innerHTML='';});"
         "})();"
     )
+
+
+# ---------------------------------------------------------------------------
+# Table row-filter — for the index/listing pages (a table of links per state).
+# Hides rows whose name cell doesn't match the typed text; updates a count el.
+# ---------------------------------------------------------------------------
+
+def table_filter_css() -> str:
+    return (
+        ".tfilter{margin:0 0 12px;padding:7px 11px;border:1px solid #aaa;border-radius:6px;"
+        "font-size:13px;width:300px;max-width:90%;box-sizing:border-box;"
+        "box-shadow:0 1px 3px rgba(0,0,0,.1)}"
+    )
+
+
+def table_filter_html(placeholder: str = "Filter by name…", input_id: str = "tfilter") -> str:
+    return f'<input id="{input_id}" class="tfilter" placeholder="{placeholder}" autocomplete="off">'
+
+
+def table_filter_js(table_id: str = "t", name_col: int = 0,
+                    input_id: str = "tfilter", count_id: str = "") -> str:
+    """JS to filter a table's rows by the text of cell ``name_col``. If
+    ``count_id`` names an element, its ``data-count`` template (or text) is
+    updated to the visible-row count."""
+    cnt = (
+        "var c=document.getElementById('" + count_id + "');"
+        "if(c){var t=c.getAttribute('data-tpl')||c.textContent;"
+        "if(!c.getAttribute('data-tpl'))c.setAttribute('data-tpl',t);"
+        "c.textContent=(c.getAttribute('data-tpl')).replace(/\\d+/,String(v));}"
+    ) if count_id else ""
+    return (
+        "(function(){"
+        "var inp=document.getElementById('" + input_id + "');if(!inp)return;"
+        "var tb=document.querySelector('#" + table_id + " tbody');if(!tb)return;"
+        "inp.addEventListener('input',function(){"
+        "var q=inp.value.trim().toLowerCase(),v=0;"
+        "[].forEach.call(tb.rows,function(r){"
+        "var cell=r.cells[" + str(name_col) + "];"
+        "var n=(cell?cell.textContent:'').toLowerCase();"
+        "var show=(!q||n.indexOf(q)>=0);r.style.display=show?'':'none';if(show)v++;});"
+        + cnt +
+        "});})();"
+    )

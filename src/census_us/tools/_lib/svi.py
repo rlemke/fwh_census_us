@@ -363,6 +363,7 @@ def _render_index_html(rows: list[dict[str, Any]], *, title: str) -> str:
           vertical-align:-1px; }}
   .lg {{ font-size:11px; color:#666; margin-top:10px; }}
   .lg span {{ display:inline-block; width:18px; height:11px; }}
+  {mapsearch.table_filter_css()}
 </style></head>
 <body>
 <header>
@@ -375,6 +376,7 @@ def _render_index_html(rows: list[dict[str, Any]], *, title: str) -> str:
   and <b>is</b> nationally comparable. Data: US Census Bureau ACS 2023 + TIGER.</p>
 </header>
 <div class="wrap">
+{mapsearch.table_filter_html("Filter states…")}
 <table id="t">
   <thead><tr>
     <th onclick="sortBy(0,'s')">State &#x25B4;&#x25BE;</th>
@@ -385,9 +387,10 @@ def _render_index_html(rows: list[dict[str, Any]], *, title: str) -> str:
   <tbody>
 {body_rows}  </tbody>
 </table>
-<div class="lg">poverty scale (low&nbsp;{legend}&nbsp;high) &middot; {len(rows)} maps</div>
+<div class="lg" id="cnt">poverty scale (low&nbsp;{legend}&nbsp;high) &middot; {len(rows)} maps</div>
 </div>
 <script>
+{mapsearch.table_filter_js("t", 0)}
 function sortBy(col, kind) {{
   const tb=document.querySelector('#t tbody');
   const rows=[...tb.rows];
