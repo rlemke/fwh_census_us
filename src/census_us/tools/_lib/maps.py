@@ -23,6 +23,7 @@ from typing import Any
 
 from census_us.tools._lib import attribution
 from census_us.tools._lib import downloader
+from census_us.tools._lib import mapsearch
 from census_us.tools._lib import metrics
 from census_us.tools._lib import storage as cstore
 from census_us.tools._lib import svi as svi_lib
@@ -178,9 +179,11 @@ def _render_metrics_html(fc: dict, *, title: str, region: str, params: dict | No
   .maplibregl-popup-content h4{{margin:0 0 4px;font-size:13px}}
   table.m{{border-collapse:collapse;margin-top:4px}} table.m td{{padding:1px 6px 1px 0}}
   table.m td.v{{text-align:right}} tr.sel td{{font-weight:700}}
+  {mapsearch.search_css_rules()}
 </style></head>
 <body>
 <div id="map"></div>
+{mapsearch.search_html("Find a county by name…")}
 <div id="ctl" class="panel">
   <h3>{title} &middot; {region}</h3>
   <select id="metric"></select>
@@ -244,6 +247,7 @@ map.on('load',()=>{{
   map.on('mouseenter','fill',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
 }});
+{mapsearch.search_js("NAME")}
 </script>{_attr}</body></html>"""
 
 
@@ -345,9 +349,11 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
   .maplegend b{{font-size:12px}} .maplegend .scale{{display:flex;margin-top:4px}}
   .maplegend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
   .maplegend .scale span{{width:34px;height:12px}}
+  {mapsearch.search_css_rules()}
 </style></head>
 <body><div id="wrap">
 <div id="map"></div>
+{mapsearch.search_html("Find a state by name…")}
 <div class="maplegend"><b id="lgttl"></b><div class="scale" id="lgscale"></div></div>
 <div id="side">
   <h3>{title}</h3>
@@ -406,6 +412,7 @@ map.on('load',()=>{{
     new maplibregl.Popup({{closeButton:true,maxWidth:'320px'}}).setLngLat(e.lngLat)
       .setHTML(`<h4>${{p.state_name||p.NAME}}</h4><table>${{rows}}</table>`).addTo(map);}});
 }});
+{mapsearch.search_js("NAME")}
 </script>{_attr}</body></html>"""
 
 

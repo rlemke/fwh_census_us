@@ -36,6 +36,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from census_us.tools._lib import attribution
+from census_us.tools._lib import mapsearch
 from census_us.tools._lib import metrics
 from census_us.tools._lib import storage as cstore
 
@@ -464,9 +465,11 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
   .maplibregl-popup-content h4 {{ margin:0 0 4px; font-size:13px; }}
   table.svi {{ border-collapse:collapse; margin-top:4px; }}
   table.svi td {{ padding:1px 6px 1px 0; }} table.svi td.v {{ text-align:right; }}
+  {mapsearch.search_css_rules()}
 </style></head>
 <body>
 <div id="map"></div>
+{mapsearch.search_html("Find a county by name…")}
 <div id="title" class="panel">
   <h3>{title}</h3>
   <div>{region} &middot; counties shaded by SVI percentile (0 = least, 100 = most vulnerable,
@@ -518,4 +521,5 @@ map.on('load', () => {{
   map.on('mouseenter','svi-fill',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave','svi-fill',()=>map.getCanvas().style.cursor='');
 }});
+{mapsearch.search_js("NAME")}
 </script>{_attr}</body></html>"""
