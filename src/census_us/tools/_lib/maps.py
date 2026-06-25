@@ -340,9 +340,15 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
   table{{border-collapse:collapse;width:100%;font-size:12px}} th,td{{padding:3px 6px;border-bottom:1px solid #eee;text-align:left}}
   td.v,th.v{{text-align:right}} .mut{{color:#999}}
   .maplibregl-popup-content{{font-size:12px}}
+  .maplegend{{position:fixed;top:12px;left:12px;z-index:1;background:rgba(255,255,255,.93);
+    padding:8px 11px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:11px}}
+  .maplegend b{{font-size:12px}} .maplegend .scale{{display:flex;margin-top:4px}}
+  .maplegend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
+  .maplegend .scale span{{width:34px;height:12px}}
 </style></head>
 <body><div id="wrap">
 <div id="map"></div>
+<div class="maplegend"><b id="lgttl"></b><div class="scale" id="lgscale"></div></div>
 <div id="side">
   <h3>{title}</h3>
   <select id="metric"></select>
@@ -373,6 +379,15 @@ function rankTable(m){{
     tr.innerHTML=`<td>${{i+1}}</td><td>${{s}}</td><td class="v">${{fmt(v,m.fmt)}}</td>`; tb.appendChild(tr); }});
   document.getElementById('note').textContent = m.worse==='low' ? 'ranked worst→best (lower = worse)' : 'ranked worst→best (higher = worse)';
 }}
+function legend(m){{
+  document.getElementById('lgttl').textContent=m.label;
+  const a=vals(m.key); const sc=document.getElementById('lgscale'); sc.innerHTML='';
+  if(!a.length) return; let lo=Math.min(...a),hi=Math.max(...a);
+  const order = m.worse==='low' ? [...RAMP].reverse() : RAMP;
+  order.forEach(([t,c])=>{{ const d=document.createElement('div');
+    const val = m.worse==='low' ? hi-(hi-lo)*t : lo+(hi-lo)*t;
+    d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(val,m.fmt)}}`; sc.appendChild(d); }});
+}}
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
   sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38],zoom:3}});
@@ -384,8 +399,8 @@ map.on('load',()=>{{
   map.addSource('s',{{type:'geojson',data:DATA}});
   map.addLayer({{id:'fill',type:'fill',source:'s',paint:{{'fill-color':colorExpr(cur),'fill-opacity':0.82}}}});
   map.addLayer({{id:'line',type:'line',source:'s',paint:{{'line-color':'#666','line-width':0.4}}}});
-  rankTable(cur);
-  sel.onchange=()=>{{cur=METRICS[+sel.value];map.setPaintProperty('fill','fill-color',colorExpr(cur));rankTable(cur);}};
+  rankTable(cur); legend(cur);
+  sel.onchange=()=>{{cur=METRICS[+sel.value];map.setPaintProperty('fill','fill-color',colorExpr(cur));rankTable(cur);legend(cur);}};
   map.on('click','fill',e=>{{const p=e.features[0].properties||{{}};
     let rows=''; for(const m of METRICS){{ rows+=`<tr><td>${{m.label}}</td><td class="v">${{fmt(p[m.key],m.fmt)}}</td></tr>`; }}
     new maplibregl.Popup({{closeButton:true,maxWidth:'320px'}}).setLngLat(e.lngLat)
