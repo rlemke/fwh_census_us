@@ -10,9 +10,9 @@ providing FFL workflows and handlers for working with US Census Bureau data:
 - **Dashboard map** — county-level choropleth in Facetwork's dashboard with switchable variables (density, income, education, commuting, …)
 - **Social Vulnerability Index (SVI)** — compute a 6-indicator CDC/ATSDR-style vulnerability index per county and render a MapLibre choropleth; fan out across all 50 states + DC and link them from a national index page (see [below](#social-vulnerability-index-svi))
 
-Outputs (cache + GeoJSON + maps) follow `AFL_STORAGE`: on the fleet they land in
+Outputs (cache + GeoJSON + maps) follow `FW_STORAGE`: on the fleet they land in
 shared MinIO (`s3://afl-cache/cache/census-us/`); locally under
-`$AFL_DATA_ROOT`.
+`$FW_DATA_ROOT`.
 
 Discovered by the Facetwork runner via the `facetwork.examples` entry point
 declared in `pyproject.toml`. After `pip install -e .`, Facetwork's

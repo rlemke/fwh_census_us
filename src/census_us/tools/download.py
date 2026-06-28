@@ -2,7 +2,7 @@
 """download — download ACS demographics or a TIGER/Line shapefile.
 
 Both kinds write into the same on-disk cache the FFL handlers use
-(`$AFL_DATA_ROOT/cache/census-us/...`), so subsequent extracts reuse
+(`$FW_DATA_ROOT/cache/census-us/...`), so subsequent extracts reuse
 what this CLI fetched.
 """
 

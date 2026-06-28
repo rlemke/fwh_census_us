@@ -20,11 +20,11 @@ from pymongo.database import Database
 def get_mongo_db() -> Database:
     """Connect to MongoDB for example data storage.
 
-    Uses ``AFL_EXAMPLES_DATABASE`` (default ``afl_examples``) so that
+    Uses ``FW_EXAMPLES_DATABASE`` (default ``afl_examples``) so that
     example data is isolated from the FFL runtime database.
     """
-    url = os.environ.get("AFL_MONGODB_URL", "mongodb://afl-mongodb:27017")
-    db_name = os.environ.get("AFL_EXAMPLES_DATABASE", "facetwork_examples")
+    url = os.environ.get("FW_MONGODB_URL", "mongodb://afl-mongodb:27017")
+    db_name = os.environ.get("FW_EXAMPLES_DATABASE", "facetwork_examples")
     return MongoClient(url)[db_name]
 
 

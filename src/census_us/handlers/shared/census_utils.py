@@ -10,7 +10,7 @@ verbatim by:
   package's siblings).
 
 Both entry points read and write the same on-disk cache
-(``$AFL_DATA_ROOT/cache/census-us/...``) — the tool and the FFL are
+(``$FW_DATA_ROOT/cache/census-us/...``) — the tool and the FFL are
 two surfaces onto one extraction.
 
 Imports use the fully-qualified ``census_us.tools._lib.<name>`` path so

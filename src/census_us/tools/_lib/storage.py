@@ -1,15 +1,15 @@
 """Backend-aware paths for census cache + outputs.
 
-On the fleet (``AFL_STORAGE=s3`` / ``AFL_DATA_ROOT=s3://afl-cache``) census
+On the fleet (``FW_STORAGE=s3`` / ``FW_DATA_ROOT=s3://afl-cache``) census
 artifacts — the ACS/TIGER download cache and the extract CSV / GeoJSON /
 summary outputs — must land in the shared MinIO object store, not silo to each
 runner's local disk. This thin wrapper over ``facetwork.runtime.storage`` makes
 that automatic:
 
-- ``cache_root()`` / ``output_root()`` resolve under ``AFL_DATA_ROOT`` (which is
+- ``cache_root()`` / ``output_root()`` resolve under ``FW_DATA_ROOT`` (which is
   an ``s3://`` URI on the fleet), falling back to the previous local defaults
   (``$output_base/census-cache`` / ``census-output``) when it isn't remote.
-  The legacy ``AFL_CENSUS_CACHE_DIR`` / ``AFL_CENSUS_OUTPUT_DIR`` overrides still
+  The legacy ``FW_CENSUS_CACHE_DIR`` / ``FW_CENSUS_OUTPUT_DIR`` overrides still
   win, for explicit local placement.
 - ``open_write()`` stages text/binary on local disk (preserving ``newline=`` /
   encoding semantics the ``csv``/``json`` writers need) then finalizes the bytes
@@ -41,8 +41,8 @@ def is_remote(path: str) -> bool:
 
 
 def _data_root() -> str:
-    # AFL_DATA_ROOT (an s3:// URI on the fleet) wins; else the local output base.
-    return os.environ.get("AFL_DATA_ROOT") or get_output_base()
+    # FW_DATA_ROOT (an s3:// URI on the fleet) wins; else the local output base.
+    return os.environ.get("FW_DATA_ROOT") or get_output_base()
 
 
 def join(*parts: str) -> str:
@@ -56,7 +56,7 @@ def join(*parts: str) -> str:
 
 
 def cache_root() -> str:
-    ov = os.environ.get("AFL_CENSUS_CACHE_DIR")
+    ov = os.environ.get("FW_CENSUS_CACHE_DIR")
     if ov:
         return ov
     r = _data_root()
@@ -64,7 +64,7 @@ def cache_root() -> str:
 
 
 def output_root() -> str:
-    ov = os.environ.get("AFL_CENSUS_OUTPUT_DIR")
+    ov = os.environ.get("FW_CENSUS_OUTPUT_DIR")
     if ov:
         return ov
     r = _data_root()

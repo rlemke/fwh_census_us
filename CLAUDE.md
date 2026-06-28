@@ -102,8 +102,8 @@ all five are wired into `register_all_registry_handlers` in
 - **`CENSUS_API_KEY` is required** — ACS5 returns an empty body without it
   (→ a JSON parse error). The downloader appends it to the *request* URL only,
   never the cached/returned `url` (keep the secret out of step payloads/Mongo).
-- **Storage is `AFL_STORAGE`-aware** (`_lib/storage.py`): `cache_root()` /
-  `output_root()` resolve under `AFL_DATA_ROOT` (s3:// on the fleet); writers
+- **Storage is `FW_STORAGE`-aware** (`_lib/storage.py`): `cache_root()` /
+  `output_root()` resolve under `FW_DATA_ROOT` (s3:// on the fleet); writers
   stage-then-finalize, readers `localize()` remote URIs before
   `open`/`csv`/`zipfile`/`fiona`. Build paths with `cstore.join` (never
   `os.path.join` — it mangles `s3://`) and check existence with `cstore.exists`.
@@ -115,7 +115,7 @@ all five are wired into `register_all_registry_handlers` in
 Both the CLIs and the FFL handlers read/write the same on-disk cache:
 
 ```
-$AFL_DATA_ROOT/cache/census-us/                   (or $AFL_CENSUS_CACHE_DIR)
+$FW_DATA_ROOT/cache/census-us/                   (or $FW_CENSUS_CACHE_DIR)
 ├── acs/                            # raw ACS API responses (JSON)
 ├── tiger/                          # downloaded shapefiles + GeoJSON conversions
 ├── extracts/                       # per-variable per-state extractions

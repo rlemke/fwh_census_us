@@ -209,7 +209,7 @@ tiger = DownloadTIGER(state_fips = $.state_fips, geo_level = "TRACT")
 
 ### Add dashboard visualization
 
-The Census maps dashboard module reads from MongoDB collections populated by the `*ToDB` handlers. Enable it with `AFL_MONGODB_URL` and run the dashboard to see interactive choropleth maps.
+The Census maps dashboard module reads from MongoDB collections populated by the `*ToDB` handlers. Enable it with `FW_MONGODB_URL` and run the dashboard to see interactive choropleth maps.
 
 ## Next Steps
 
