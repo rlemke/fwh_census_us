@@ -23,13 +23,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from html import escape
+from html import escape, unescape
 
 from facetwork.runtime import storage as _fws
 
@@ -155,6 +156,36 @@ def _grouped_landing_html(
             + "\n".join(blocks) + "\n" + _HTML_FOOT)
 
 
+_LINK_RE = re.compile(r'<li><a href="([^"]+)/index\.html">(.*?)</a></li>', re.S)
+_DESC_RE = re.compile(r'<p class="desc">(.*?)</p>', re.S)
+
+
+def _harvest_existing(repo_dir: str) -> tuple[list[tuple[str, str]], dict[str, str]]:
+    """Read the bundle links + section/root descriptions already in the cloned
+    repo so an incremental publish can MERGE rather than clobber them.
+
+    Returns ``(links, descriptions)`` where links is ``[(label, dest), …]`` from
+    the existing root landing and descriptions maps section → its ``<p class=desc>``
+    text (``""`` key = root landing). Missing repo / pages → empty."""
+    links: list[tuple[str, str]] = []
+    descs: dict[str, str] = {}
+    root = os.path.join(repo_dir, "index.html")
+    if os.path.exists(root):
+        txt = open(root, encoding="utf-8").read()
+        m = _DESC_RE.search(txt)
+        if m:
+            descs[""] = unescape(m.group(1))
+        for lm in _LINK_RE.finditer(txt):
+            links.append((unescape(lm.group(2)), unescape(lm.group(1))))
+    for sec in sorted({d.split("/")[0] for _, d in links if "/" in d}):
+        sidx = os.path.join(repo_dir, sec, "index.html")
+        if os.path.exists(sidx):
+            m = _DESC_RE.search(open(sidx, encoding="utf-8").read())
+            if m:
+                descs[sec] = unescape(m.group(1))
+    return links, descs
+
+
 def _ensure_pages(repo: str, branch: str, token: str) -> None:
     """Best-effort enable of GitHub Pages (source = branch root). A failure here
     must not fail the publish — the push already succeeded."""
@@ -224,6 +255,11 @@ def publish_bundles(
         _run(["git", "config", "user.email", "facetwork-publish@localhost"], cwd=repo_dir, env=env)
         _run(["git", "config", "user.name", "facetwork-publish"], cwd=repo_dir, env=env)
 
+        # Incremental-safe: harvest the bundles + descriptions ALREADY in the
+        # repo so we merge them into the rebuilt landing instead of clobbering
+        # the gallery down to just the bundles published in this call.
+        existing_links, existing_desc = _harvest_existing(repo_dir)
+
         total_n = 0
         total_b = 0
         links: list[tuple[str, str]] = []
@@ -246,14 +282,24 @@ def publish_bundles(
 
         # .nojekyll so paths/underscores serve verbatim.
         open(os.path.join(repo_dir, ".nojekyll"), "w").close()
+        # Merge this call's bundles with the ones already in the repo (this call
+        # wins on a dest collision) so the rebuilt landing keeps every map.
+        published = {d for _, d in links}
+        for lbl, dst in existing_links:
+            if dst not in published:
+                links.append((lbl, dst))
         # Group bundles by top-level section (first path segment, e.g. "world").
         sections: dict[str, list[tuple[str, str]]] = {}
         for label, dest in links:
             sec = dest.split("/")[0] if "/" in dest else ""
             sections.setdefault(sec, []).append((label, dest))
+        for items in sections.values():
+            items.sort(key=lambda t: t[0].lower())
         # Per-section index page (e.g. world/index.html links the world maps),
         # with section-relative hrefs + the redundant "(section)" suffix stripped.
-        desc = descriptions or {}
+        # Existing section/root descriptions are preserved; this call's overrides win.
+        desc = dict(existing_desc)
+        desc.update(descriptions or {})
         for sec, items in sections.items():
             if not sec:
                 continue
