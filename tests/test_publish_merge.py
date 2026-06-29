@@ -72,3 +72,35 @@ def test_merge_keeps_existing_and_overrides_collision(tmp_path):
     assert ("Old Nuclear", "world/nuclear") not in links
     # untouched bundle preserved
     assert ("Volcanoes", "world/volcanoes") in links
+
+
+def test_publish_releases_on_token_less_host(monkeypatch):
+    """Publish routing is by namespace ("census"), so any census runner can CLAIM
+    the publish task; only the host with GITHUB_TOKEN can service it. On a
+    token-less host the dispatch must raise ModuleNotFoundError — the one
+    exception the runtime treats as "release back to pending" — so the
+    credentialed host claims it, instead of hard-failing the task."""
+    import pytest
+
+    from census_us.handlers.publish import publish_handlers as PH
+
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    with pytest.raises(ModuleNotFoundError):
+        PH.handle({"_facet_name": f"{PH.NAMESPACE}.PublishWebBundle"})
+
+
+def test_publish_passes_gate_with_token(monkeypatch):
+    """With a token present the dispatch clears the release gate and reaches the
+    handler (which may then fail downstream — we only assert it is NOT the
+    token-release ModuleNotFoundError)."""
+    from census_us.handlers.publish import publish_handlers as PH
+
+    monkeypatch.setenv("GITHUB_TOKEN", "x")
+    try:
+        PH.handle({"_facet_name": f"{PH.NAMESPACE}.PublishWebBundle",
+                   "prefixes": [], "dests": []})
+    except ModuleNotFoundError:
+        raise AssertionError("token present but task was still released")
+    except Exception:
+        pass  # downstream handler failure is fine — the gate let it through

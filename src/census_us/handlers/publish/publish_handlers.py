@@ -84,7 +84,21 @@ _DISPATCH: dict[str, Any] = {
 
 
 def handle(payload: dict) -> dict:
-    """RegistryRunner dispatch entrypoint."""
+    """RegistryRunner dispatch entrypoint.
+
+    Task routing is by namespace ("census"), so ANY census runner can claim a
+    publish task even though only the credentialed host can service it — the
+    per-runner :func:`register_handlers` token gate can't prevent the claim
+    (the handler is globally registered and importable on every host). So gate
+    again here at execution: on a token-less host raise ``ModuleNotFoundError``,
+    which is the one exception the runtime treats as "release back to pending"
+    (registry_runner) rather than an error — the credentialed host then claims it.
+    """
+    if not _has_token():
+        raise ModuleNotFoundError(
+            "PublishWebBundle requires GITHUB_TOKEN (or GH_TOKEN); releasing the "
+            "task for the credentialed host to claim"
+        )
     facet_name = payload["_facet_name"]
     handler = _DISPATCH.get(facet_name)
     if handler is None:
