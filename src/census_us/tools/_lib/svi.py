@@ -449,6 +449,12 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
         "census.workflows.BuildVulnerabilityMap",
         params={"state_fips": STATE_FIPS.get(region), "state_name": region},
     )
+    _desc = (f"{region} &middot; counties shaded by SVI percentile (0 = least, 100 = most "
+             "vulnerable, ranked within this view). Click a county for the breakdown.")
+    _about = (f"<p><b>{title}</b></p><p>{_desc}</p>"
+              "<p>Each county's SVI is the mean of six percentile-ranked indicators "
+              "(poverty, unemployment, education, age 65+, no-vehicle, renter) &mdash; ranked "
+              "<b>within this view</b>. Data: US Census Bureau ACS 2023 + TIGER.</p>")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} — {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -468,6 +474,7 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
   .maplibregl-popup-content h4 {{ margin:0 0 4px; font-size:13px; }}
   table.svi {{ border-collapse:collapse; margin-top:4px; }}
   table.svi td {{ padding:1px 6px 1px 0; }} table.svi td.v {{ text-align:right; }}
+  {attribution.ABOUT_MODAL_CSS}
   {mapsearch.search_css_rules()}
 </style></head>
 <body>
@@ -475,8 +482,8 @@ def _render_html(fc: dict[str, Any], *, title: str, region: str) -> str:
 {mapsearch.search_html("Find a county by name…")}
 <div id="title" class="panel">
   <h3>{title}</h3>
-  <div>{region} &middot; counties shaded by SVI percentile (0 = least, 100 = most vulnerable,
-  ranked within this view). Click a county for the breakdown.</div>
+  <div>{_desc}</div>
+  {attribution.ABOUT_MODAL_BUTTON}
 </div>
 <div id="legend" class="panel"><b>SVI percentile</b><div class="scale">{legend_rows}</div></div>
 <script>
@@ -525,4 +532,7 @@ map.on('load', () => {{
   map.on('mouseleave','svi-fill',()=>map.getCanvas().style.cursor='');
 }});
 {mapsearch.search_js("NAME")}
-</script>{_attr}</body></html>"""
+{attribution.ABOUT_MODAL_JS}
+</script>
+{attribution.about_modal_html(_about)}
+{_attr}</body></html>"""

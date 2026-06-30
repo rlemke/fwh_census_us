@@ -20,6 +20,50 @@ def _now() -> str:
 CENSUS_FFL_URL = "https://github.com/rlemke/fwh_census_us/blob/main/src/census_us/ffl/census.ffl"
 
 
+# ---------------------------------------------------------------------------
+# "About this data" popup — a dismissible modal shown ON LOAD, matching the
+# rest of the facetwork-maps gallery. The helpers return plain (non-f) strings
+# so they drop into a renderer's own f-string template without brace-escaping.
+# ---------------------------------------------------------------------------
+
+# Visible on load via .modal{display:flex}; the JS toggles display to none/flex.
+ABOUT_MODAL_CSS = (
+    ".infobtn{margin-top:8px;width:100%;padding:7px;font-size:13px;cursor:pointer;"
+    "background:#fff8e1;border:1px solid #f6c343;border-radius:4px;color:#5d4b00}"
+    ".infobtn:hover{background:#fff2c4}"
+    ".modal{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.45);"
+    "display:flex;align-items:center;justify-content:center}"
+    ".modalcard{background:#fff;max-width:460px;margin:16px;padding:18px 20px 20px;"
+    "border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.4);position:relative;"
+    "font:13px/1.5 system-ui,sans-serif;max-height:80vh;overflow:auto}"
+    ".modalcard h2{margin:0 0 8px;font-size:16px} .modalbody{color:#333} .modalbody b{color:#111}"
+    ".modalclose{position:absolute;top:6px;right:10px;border:none;background:none;"
+    "font-size:24px;line-height:1;cursor:pointer;color:#999} .modalclose:hover{color:#444}"
+)
+
+# Reopen button — drop into a control panel.
+ABOUT_MODAL_BUTTON = '<button id="infobtn" class="infobtn">&#8505;&#65039; About this data</button>'
+
+# Toggle/dismiss wiring — drop into a renderer's existing <script> block.
+ABOUT_MODAL_JS = (
+    "const _im=document.getElementById('infomodal');"
+    "if(_im){const ib=document.getElementById('infobtn'),ic=document.getElementById('infoclose');"
+    "if(ib)ib.onclick=()=>{_im.style.display='flex';};"
+    "if(ic)ic.onclick=()=>{_im.style.display='none';};"
+    "_im.onclick=e=>{if(e.target===_im)_im.style.display='none';};}"
+)
+
+
+def about_modal_html(about_html: str) -> str:
+    """The modal markup; ``about_html`` is the map's own descriptive/source HTML."""
+    return (
+        '<div id="infomodal" class="modal"><div class="modalcard">'
+        '<button id="infoclose" class="modalclose">&times;</button>'
+        '<h2>About this data</h2>'
+        f'<div class="modalbody">{about_html}</div></div></div>'
+    )
+
+
 def footer_html(workflow: str, ffl_url: str = CENSUS_FFL_URL, params: dict | None = None) -> str:
     """Return an inline-styled provenance footer ``<div>`` for ``workflow``.
 

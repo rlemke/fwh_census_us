@@ -161,6 +161,10 @@ def _render_metrics_html(fc: dict, *, title: str, region: str, params: dict | No
     _attr = attribution.footer_html(
         "census.workflows.BuildStateMetricsMap", params=params or {"state_name": region}
     )
+    _desc = ('Counties shaded <b>dark = worse</b>. Click a county for all metrics. '
+             'SVI = percentile-ranked composite within this state. '
+             'Data: US Census ACS 2023 + TIGER.')
+    _about = f"<p><b>{title} &middot; {region}</b></p><p>{_desc}</p>"
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title} - {region}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -179,6 +183,7 @@ def _render_metrics_html(fc: dict, *, title: str, region: str, params: dict | No
   .maplibregl-popup-content h4{{margin:0 0 4px;font-size:13px}}
   table.m{{border-collapse:collapse;margin-top:4px}} table.m td{{padding:1px 6px 1px 0}}
   table.m td.v{{text-align:right}} tr.sel td{{font-weight:700}}
+  {attribution.ABOUT_MODAL_CSS}
   {mapsearch.search_css_rules()}
 </style></head>
 <body>
@@ -187,8 +192,8 @@ def _render_metrics_html(fc: dict, *, title: str, region: str, params: dict | No
 <div id="ctl" class="panel">
   <h3>{title} &middot; {region}</h3>
   <select id="metric"></select>
-  <div style="margin-top:5px;color:#555">Counties shaded <b>dark = worse</b>. Click a county for all
-  metrics. SVI = percentile-ranked composite within this state. Data: US Census ACS 2023 + TIGER.</div>
+  <div style="margin-top:5px;color:#555">{_desc}</div>
+  {attribution.ABOUT_MODAL_BUTTON}
 </div>
 <div id="legend" class="panel"><b id="lgttl"></b><div class="scale" id="lgscale"></div></div>
 <script>
@@ -248,7 +253,10 @@ map.on('load',()=>{{
   map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
 }});
 {mapsearch.search_js("NAME")}
-</script>{_attr}</body></html>"""
+{attribution.ABOUT_MODAL_JS}
+</script>
+{attribution.about_modal_html(_about)}
+{_attr}</body></html>"""
 
 
 # ---------------------------------------------------------------------------
@@ -332,6 +340,9 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
     # rankings rows source: {fips: {key: val}} + names
     rank_src = json.dumps({_FIPS_NAME.get(f, f): v for f, v in state_vals.items()})
     _attr = attribution.footer_html("census.workflows.BuildRankings")
+    _about = (f"<p><b>{title}</b></p>"
+              "<p>Sortable national rankings table + a US state choropleth per metric "
+              "(states shaded, metric dropdown). Data: US Census Bureau ACS 2023 + TIGER.</p>")
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -349,6 +360,7 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
   .maplegend b{{font-size:12px}} .maplegend .scale{{display:flex;margin-top:4px}}
   .maplegend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
   .maplegend .scale span{{width:34px;height:12px}}
+  {attribution.ABOUT_MODAL_CSS}
   {mapsearch.search_css_rules()}
 </style></head>
 <body><div id="wrap">
@@ -360,6 +372,7 @@ def _render_national_html(fc: dict, state_vals: dict, *, title: str) -> str:
   <select id="metric"></select>
   <div class="mut" id="note" style="margin-bottom:6px"></div>
   <table><thead><tr><th>#</th><th>State</th><th class="v" id="vh">Value</th></tr></thead><tbody id="rk"></tbody></table>
+  {attribution.ABOUT_MODAL_BUTTON}
 </div></div>
 <script>
 const DATA={data_js}, RANK={rank_src}, RAMP={ramp_js};
@@ -413,7 +426,10 @@ map.on('load',()=>{{
       .setHTML(`<h4>${{p.state_name||p.NAME}}</h4><table>${{rows}}</table>`).addTo(map);}});
 }});
 {mapsearch.search_js("NAME")}
-</script>{_attr}</body></html>"""
+{attribution.ABOUT_MODAL_JS}
+</script>
+{attribution.about_modal_html(_about)}
+{_attr}</body></html>"""
 
 
 def _metric_js_national() -> str:
