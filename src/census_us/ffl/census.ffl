@@ -292,6 +292,39 @@ namespace census.workflows {
     }
 
     /**
+     * ONE national county choropleth of median household income (ACS B19013,
+     * 5-year estimates) for the entire USA. Two cached downloads — a single
+     * national county ACS pull (state_fips="us" → for=county:*) and the
+     * national TIGER county file — feed one render task; no per-state fan-out
+     * is needed because the Census API serves all ~3,200 counties in one call.
+     * Counties with no published estimate shade grey on the map.
+     * @param year ACS 5-year vintage
+     * @param title Map title
+     * @returns html_path The national income choropleth (clickable in the dashboard)
+     * @returns detail Counties with income data / counties rendered
+     */
+    workflow BuildIncomeMapUS(
+        year: String = "2023",
+        title: String = "Median household income by county"
+    ) => (status: String, html_path: String, detail: String) andThen {
+        acs = DownloadACS(state_fips = "us", year = $.year)
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        map = BuildNationalCountyMap(
+            acs_file = acs.file,
+            tiger_file = tiger.file,
+            metric = "median_income",
+            title = $.title,
+            region = "us-income",
+            year = $.year
+        )
+        yield BuildIncomeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = "income map: " ++ map.valued_count ++ " of " ++ map.county_count ++ " counties with data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

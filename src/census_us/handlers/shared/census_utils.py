@@ -37,6 +37,7 @@ from census_us.tools._lib import (  # noqa: F401
 from census_us.tools._lib.maps import (  # noqa: F401
     build_metrics_index,
     build_metrics_map,
+    build_national_county_map,
     build_national_rankings,
     build_state_metrics,
 )
@@ -82,6 +83,7 @@ __all__ = [
     "tiger_extractor",
     "build_metrics_index",
     "build_metrics_map",
+    "build_national_county_map",
     "build_national_rankings",
     "build_state_metrics",
     "publish_bundles",

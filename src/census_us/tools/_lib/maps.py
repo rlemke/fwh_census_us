@@ -554,3 +554,234 @@ def build_state_metrics(
         jr.output_path, region=state_name, title=f"Census metrics: {state_name}",
         params={"state_fips": state_fips, "state_name": state_name},
     )
+
+
+# ---------------------------------------------------------------------------
+# National single-metric county choropleth.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class NationalCountyResult:
+    output_path: str  # simplified county GeoJSON with the metric value
+    html_path: str  # national choropleth
+    county_count: int  # counties rendered
+    valued_count: int  # counties with a metric value
+
+
+def _round_coords(coords, nd: int = 3):
+    """Recursively round coordinate arrays (110 m at nd=3 — fine nationally)."""
+    if isinstance(coords[0], (int, float)):
+        return [round(coords[0], nd), round(coords[1], nd)]
+    return [_round_coords(c, nd) for c in coords]
+
+
+def _national_county_features(tiger_zip: str) -> list[dict]:
+    """Read the national TIGER county ZIP → simplified, coordinate-rounded
+    features so ~3,200 counties fit inline in one HTML (the same
+    simplify-for-the-browser approach the per-state maps get for free from
+    their smaller extent)."""
+    from shapely.geometry import mapping as shp_mapping
+    from shapely.geometry import shape as shp_shape
+
+    from census_us.tools._lib import tiger_extractor as tx
+
+    local_zip = cstore.localize(tiger_zip)
+    raw: list[tuple[dict, dict]] = []  # (props, geometry)
+    if tx.HAS_FIONA:
+        import fiona
+
+        with fiona.open(f"zip://{local_zip}") as src:
+            for feature in src:
+                raw.append((dict(feature.get("properties", {})), dict(feature["geometry"])))
+    elif tx.HAS_PYSHP:
+        import shapefile
+
+        reader = shapefile.Reader(local_zip)
+        for sr in reader.shapeRecords():
+            geo = sr.shape.__geo_interface__
+            if geo.get("type") != "Null":
+                raw.append((sr.record.as_dict(), geo))
+    else:
+        raise RuntimeError("fiona or pyshp required to read TIGER shapefiles")
+
+    features: list[dict] = []
+    for props, geom in raw:
+        try:
+            simplified = shp_shape(geom).simplify(0.02, preserve_topology=True)
+            g = shp_mapping(simplified)
+            g = {"type": g["type"], "coordinates": _round_coords(g["coordinates"])}
+        except Exception:
+            g = geom
+        features.append({"type": "Feature", "properties": props, "geometry": g})
+    return features
+
+
+def build_national_county_map(
+    acs_path: str,
+    tiger_path: str,
+    *,
+    metric: str = "median_income",
+    year: str = "2023",
+    title: str = "Median household income by county",
+    region: str = "us-income",
+    params: dict | None = None,
+) -> NationalCountyResult:
+    """One national county choropleth for a single registry metric.
+
+    ``acs_path`` is a national county pull (download_acs(state_fips="us")) —
+    GEOID rows "0500000US<st><cty>". ``tiger_path`` is the national TIGER
+    county ZIP (download_tiger COUNTY). Counties present in TIGER but absent
+    from the ACS pull (island territories, suppressed estimates) shade grey.
+    """
+    m = metrics.BY_KEY.get(metric)
+    if m is None:
+        raise ValueError(f"Unknown metric: {metric}. Known: {sorted(metrics.BY_KEY)}")
+
+    # {5-digit fips: (value, "County, State")} from the ACS CSV
+    vals: dict[str, tuple[float | None, str]] = {}
+    import csv as _csv
+
+    with cstore.open_read(acs_path, newline="") as f:
+        for row in _csv.DictReader(f):
+            fips = (row.get("GEOID", "") or "").rsplit("US", 1)[-1]
+            if len(fips) == 5:
+                vals[fips] = (metrics.compute_metric(row, m), row.get("NAME", ""))
+
+    features = _national_county_features(tiger_path)
+    valued = 0
+    for feat in features:
+        props = feat.get("properties") or {}
+        fips = props.get("GEOID") or f"{props.get('STATEFP', '')}{props.get('COUNTYFP', '')}"
+        val, acs_name = vals.get(fips, (None, ""))
+        name = acs_name or props.get("NAMELSAD") or props.get("NAME") or "County"
+        feat["properties"] = {"GEOID": fips, "NAME": name, "val": val}
+        if val is not None:
+            valued += 1
+
+    # national rank (1 = best by the metric's direction: low is best for
+    # worse-high metrics, high is best for worse-low ones like income)
+    ranked = sorted(
+        (ft for ft in features if ft["properties"]["val"] is not None),
+        key=lambda ft: ft["properties"]["val"],
+        reverse=(m.worse == "low"),
+    )
+    for i, ft in enumerate(ranked, start=1):
+        ft["properties"]["rank"] = i
+
+    # Quantile color stops: national income is right-skewed, so linear
+    # min→max stops would wash out everything below the outlier counties.
+    qvals = sorted(ft["properties"]["val"] for ft in ranked)
+    ramp = list(reversed([c for _v, c in _RAMP])) if m.worse == "low" else [c for _v, c in _RAMP]
+    stops: list[tuple[float, str]] = []
+    if qvals:
+        last = None
+        for (frac, _c), color in zip(_RAMP, ramp):
+            v = float(qvals[min(int(frac * (len(qvals) - 1)), len(qvals) - 1)])
+            if last is not None and v <= last:
+                v = last + abs(last) * 1e-6 + 1e-9  # keep stops strictly ascending
+            stops.append((v, color))
+            last = v
+
+    fc = {"type": "FeatureCollection", "features": features}
+    out_dir = cstore.join(cstore.output_root(), "national", region or metric.replace("_", "-"))
+    geo_path = cstore.join(out_dir, "counties.geojson")
+    with cstore.open_write(geo_path, "w") as f:
+        f.write(json.dumps(fc, separators=(",", ":")))
+
+    html = _render_national_county_html(
+        fc, m, stops, title=title, year=year, county_count=len(features),
+        valued_count=valued, params=params,
+    )
+    html_path = cstore.join(out_dir, "index.html")
+    with cstore.open_write(html_path, "w") as f:
+        f.write(html)
+
+    return NationalCountyResult(geo_path, html_path, len(features), valued)
+
+
+def _render_national_county_html(
+    fc: dict,
+    m: metrics.Metric,
+    stops: list[tuple[float, str]],
+    *,
+    title: str,
+    year: str,
+    county_count: int,
+    valued_count: int,
+    params: dict | None = None,
+) -> str:
+    data_js = json.dumps(fc, separators=(",", ":"))
+    stops_js = json.dumps(stops)
+    _attr = attribution.footer_html(
+        "census.workflows.BuildIncomeMapUS", params=params or {"metric": m.key}
+    )
+    _desc = (
+        f"Every US county shaded by <b>{m.label.lower()}</b> (ACS {year} 5-year, "
+        f"table quantile scale — dark = {'lower' if m.worse == 'low' else 'higher'}). "
+        f"Click a county for its value and national rank. Grey = no estimate "
+        f"(island territories, small-population suppression). "
+        f"{valued_count:,} of {county_count:,} counties have data."
+    )
+    _about = f"<p><b>{title}</b></p><p>{_desc}</p>"
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  html,body,#map{{margin:0;height:100%;width:100%;font-family:system-ui,sans-serif}}
+  .panel{{position:absolute;z-index:1;background:rgba(255,255,255,.93);padding:10px 12px;
+    border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:12px}}
+  #ctl{{top:10px;left:10px;max-width:340px}}
+  #ctl h3{{margin:0 0 6px;font-size:14px}}
+  #legend{{bottom:18px;left:10px}} #legend .scale{{display:flex;margin-top:4px}}
+  #legend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
+  #legend .scale span{{width:44px;height:12px}}
+  .maplibregl-popup-content{{max-width:300px;font-size:12px}}
+  .maplibregl-popup-content h4{{margin:0 0 4px;font-size:13px}}
+  {attribution.ABOUT_MODAL_CSS}
+  {mapsearch.search_css_rules()}
+</style></head>
+<body>
+<div id="map"></div>
+{mapsearch.search_html("Find a county by name…")}
+<div id="ctl" class="panel">
+  <h3>{title}</h3>
+  <div style="color:#555">{_desc}</div>
+  {attribution.ABOUT_MODAL_BUTTON}
+</div>
+<div id="legend" class="panel"><b>{m.label}</b><div class="scale" id="lgscale"></div></div>
+<script>
+const DATA={data_js}, STOPS={stops_js};
+const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
+  if('{m.fmt}'==='dollar') return '$'+Math.round(v).toLocaleString();
+  if('{m.fmt}'==='index') return (Math.round(v*1000)/1000).toString();
+  if('{m.fmt}'==='count') return Math.round(v).toLocaleString();
+  return (Math.round(v*10)/10)+'%'; }};
+const sc=document.getElementById('lgscale');
+STOPS.forEach(([v,c])=>{{const d=document.createElement('div');
+  d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(v)}}`; sc.appendChild(d);}});
+const expr=['interpolate',['linear'],['get','val']];
+for(const [v,c] of STOPS) expr.push(v,c);
+const map=new maplibregl.Map({{container:'map',style:{{version:8,
+  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38.5],zoom:3.4}});
+map.addControl(new maplibregl.NavigationControl());
+map.on('load',()=>{{
+  map.addSource('c',{{type:'geojson',data:DATA}});
+  map.addLayer({{id:'fill',type:'fill',source:'c',paint:{{
+    'fill-color':['case',['==',['get','val'],null],'{_NODATA}',expr],'fill-opacity':0.8}}}});
+  map.addLayer({{id:'line',type:'line',source:'c',paint:{{'line-color':'#555','line-width':0.3}}}});
+  map.on('click','fill',e=>{{const p=e.features[0].properties||{{}};
+    const rk=p.rank?`#${{p.rank.toLocaleString()}} of {valued_count:,}`:'no estimate';
+    new maplibregl.Popup({{closeButton:true,maxWidth:'300px'}}).setLngLat(e.lngLat)
+      .setHTML(`<h4>${{p.NAME||'County'}}</h4>{m.label}: <b>${{fmt(p.val)}}</b><br>National rank: ${{rk}}`).addTo(map);}});
+  map.on('mouseenter','fill',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
+}});
+{mapsearch.search_js("NAME")}
+{attribution.ABOUT_MODAL_JS}
+</script>
+{attribution.about_modal_html(_about)}
+{_attr}</body></html>"""

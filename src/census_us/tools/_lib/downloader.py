@@ -110,9 +110,10 @@ def download_acs(
         state_fips: Two-digit state FIPS code (ignored when geo="state").
         columns: Comma-separated list of ACS estimate columns.
         tag: Cache filename tag for differentiating downloads.
-        geo: "county" (all counties in state_fips) or "state" (all 50 states +
-            DC, for national rankings). State rows key on the "0400000US<st>"
-            GEOID; county rows on "0500000US<st><cty>".
+        geo: "county" (all counties in state_fips, or every county nationally
+            when state_fips="us") or "state" (all 50 states + DC, for national
+            rankings). State rows key on the "0400000US<st>" GEOID; county
+            rows on "0500000US<st><cty>".
 
     Returns a CensusFile dict with url, path, date, size, wasInCache.
     """
@@ -120,6 +121,9 @@ def download_acs(
     dest = cstore.join(cstore.cache_root(), "acs", year, filename)
     if geo == "state":
         for_clause = "&for=state:*"
+    elif state_fips == "us":
+        # National county pull: every county in every state (+ DC + PR).
+        for_clause = "&for=county:*"
     else:
         for_clause = f"&for=county:*&in=state:{state_fips}"
     url = f"{CENSUS_API_BASE}/{year}/acs/acs5?get=NAME,{columns}{for_clause}"
