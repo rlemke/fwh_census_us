@@ -39,6 +39,7 @@ from census_us.tools._lib.indicators import (  # noqa: F401
     build_chr_jobless_ts_csv,
     build_chr_measure_series_csv,
     build_cancer_mortality_csv,
+    build_drug_overdose_ts_csv,
     build_heart_disease_ts_csv,
     build_homeless_ts_csv,
 )
@@ -99,6 +100,7 @@ __all__ = [
     "build_chr_jobless_ts_csv",
     "build_chr_measure_series_csv",
     "build_cancer_mortality_csv",
+    "build_drug_overdose_ts_csv",
     "build_heart_disease_ts_csv",
     "build_homeless_ts_csv",
     "build_national_county_map",

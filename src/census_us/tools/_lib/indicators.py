@@ -542,3 +542,52 @@ def build_cancer_mortality_csv() -> dict[str, Any]:
             wr.writerow([f"0500000US{fips}", name, v])
     logger.info("SCP cancer mortality: %d counties -> %s", len(vals), dest)
     return _file_info(dest, CANCER_SCP_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# NCHS drug-poisoning (overdose) mortality — annual county rates 2003-2021.
+# ---------------------------------------------------------------------------
+
+DRUG_OD_URL = (
+    "https://data.cdc.gov/resource/rpvx-m2md.csv"
+    "?$limit=200000&$select=year,fips,model_based_death_rate"
+)
+
+
+def parse_drug_od_csv(path: str) -> dict[str, dict[int, float]]:
+    """{fips: {year: rate}} — Socrata strips leading zeros from fips."""
+    out: dict[str, dict[int, float]] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in csv.DictReader(f):
+            y = (row.get("year") or "").strip()
+            fips = (row.get("fips") or "").strip().zfill(5)
+            if not y.isdigit() or len(fips) != 5:
+                continue
+            try:
+                val = float(row.get("model_based_death_rate", ""))
+            except (TypeError, ValueError):
+                continue
+            out.setdefault(fips, {})[int(y)] = round(val, 1)
+    return out
+
+
+def build_drug_overdose_ts_csv() -> dict[str, Any]:
+    """NCHS model-based county drug-poisoning death rates (annual 2003-2021,
+    per 100k) → wide time CSV. One Socrata pull."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    raw = _fetch(DRUG_OD_URL, cstore.join(cache, "nchs_drug_od.csv"), min_bytes=500000)
+    series = parse_drug_od_csv(raw)
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError("No drug-overdose rows parsed")
+    dest = cstore.join(cache, "nchs_drug_od_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", ""]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info("NCHS drug OD: %d counties x %d years -> %s", len(series), len(years), dest)
+    return _file_info(dest, DRUG_OD_URL, False)

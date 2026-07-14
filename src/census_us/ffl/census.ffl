@@ -557,6 +557,28 @@ namespace census.workflows {
     }
 
     /**
+     * Drug-overdose mortality national county TIME map: NCHS model-based
+     * county drug-poisoning death rates, ANNUAL 2003-2021.
+     */
+    workflow BuildOverdoseTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        od = DownloadDrugOverdoseTS()
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = od.ts_file,
+            metric = "drug_overdose",
+            title = "Drug overdose deaths by county",
+            region = "us-overdose",
+            source_note = "NCHS model-based county drug-poisoning death rates, annual 2003-2021, per 100,000 (age-adjusted point estimates; small-county rates are model-smoothed)"
+        )
+        yield BuildOverdoseTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

@@ -211,3 +211,15 @@ class TestMortalitySources:
             )
         out = indicators.parse_scp_deathrates(str(p))
         assert out == {"12125": (412.2, "Union County, Florida")}
+
+    def test_parse_drug_od(self, tmp_path):
+        p = tmp_path / "od.csv"
+        with open(p, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["year", "fips", "model_based_death_rate"])
+            wr.writerow(["2021", "6075", "52.58417"])  # Socrata strips leading zero
+            wr.writerow(["2003", "54047", "22.1"])
+            wr.writerow(["2021", "54047", "164.5793"])
+        out = indicators.parse_drug_od_csv(str(p))
+        assert out["06075"] == {2021: 52.6}
+        assert out["54047"] == {2003: 22.1, 2021: 164.6}

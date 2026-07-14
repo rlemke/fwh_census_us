@@ -13,6 +13,7 @@ from ..shared.census_utils import (
     build_chr_jobless_ts_csv,
     build_chr_measure_series_csv,
     build_cancer_mortality_csv,
+    build_drug_overdose_ts_csv,
     build_heart_disease_ts_csv,
     build_homeless_ts_csv,
     download_acs,
@@ -267,6 +268,21 @@ def handle_download_cancer_mortality(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_drug_overdose_ts(params: dict[str, Any]) -> dict[str, Any]:
+    """NCHS model-based county drug-poisoning death rates (annual 2003-2021)
+    -> wide time CSV."""
+    step_log = params.get("_step_log")
+    try:
+        ts_file = build_drug_overdose_ts_csv()
+        if step_log:
+            step_log(f"DownloadDrugOverdoseTS: {ts_file['size']}B", level="success")
+        return {"ts_file": ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadDrugOverdoseTS: {exc}", level="error")
+        raise
+
+
 def handle_download_homeless_ts(params: dict[str, Any]) -> dict[str, Any]:
     """HUD PIT CoC counts + CoC-county crosswalk -> homeless per-10k wide CSV.
 
@@ -300,6 +316,7 @@ _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadCHRSeries": handle_download_chr_series,
     f"{NAMESPACE}.DownloadHeartDiseaseTS": handle_download_heart_disease_ts,
     f"{NAMESPACE}.DownloadCancerMortality": handle_download_cancer_mortality,
+    f"{NAMESPACE}.DownloadDrugOverdoseTS": handle_download_drug_overdose_ts,
     f"{NAMESPACE}.DownloadHomelessTS": handle_download_homeless_ts,
 }
 

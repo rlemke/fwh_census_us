@@ -93,6 +93,11 @@ namespace census.Operations {
       * login-gated; CDC WONDER blocks county queries via API). */
     event facet DownloadCancerMortality() => (indicators_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
+    /** NCHS model-based county drug-poisoning (overdose) death rates —
+      * ANNUAL 2003-2021, per 100,000 (point estimates; small counties are
+      * model-smoothed) → wide time CSV. One data.cdc.gov pull. */
+    event facet DownloadDrugOverdoseTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit
