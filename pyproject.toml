@@ -30,6 +30,7 @@ mongodb = [
 shapefiles = [
     "shapely>=2.0",
     "pyshp>=2.3",
+    "pyxlsb>=1.0",
 ]
 
 [project.urls]

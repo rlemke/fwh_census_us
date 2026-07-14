@@ -7,7 +7,14 @@ to the shared downloader module.
 import os
 from typing import Any
 
-from ..shared.census_utils import ACS_TABLES, download_acs, download_tiger
+from ..shared.census_utils import (
+    ACS_TABLES,
+    build_chr_indicators_csv,
+    build_chr_jobless_ts_csv,
+    build_homeless_ts_csv,
+    download_acs,
+    download_tiger,
+)
 
 NAMESPACE = "census.Operations"
 
@@ -176,6 +183,51 @@ def handle_download_acs_demographics(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_chr(params: dict[str, Any]) -> dict[str, Any]:
+    """Fetch County Health Rankings sources and emit two normalized CSVs.
+
+    Returns indicators_file (chr_homicide + chr_violent_crime per county) and
+    jobless_ts_file (annual county unemployment 2002-2022, wide y#### form).
+    """
+    step_log = params.get("_step_log")
+    try:
+        indicators_file = build_chr_indicators_csv()
+        jobless_ts_file = build_chr_jobless_ts_csv()
+        if step_log:
+            step_log(
+                f"DownloadCHR: indicators {indicators_file['size']}B, "
+                f"jobless trends {jobless_ts_file['size']}B",
+                level="success",
+            )
+        return {"indicators_file": indicators_file, "jobless_ts_file": jobless_ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadCHR: {exc}", level="error")
+        raise
+
+
+def handle_download_homeless_ts(params: dict[str, Any]) -> dict[str, Any]:
+    """HUD PIT CoC counts + CoC-county crosswalk -> homeless per-10k wide CSV.
+
+    Params: acs_file — a national county ACS pull carrying B01003_001E (the
+    apportionment weight + rate denominator).
+    """
+    acs_file = params.get("acs_file")
+    acs_path = acs_file.get("path", "") if isinstance(acs_file, dict) else ""
+    step_log = params.get("_step_log")
+    if not acs_path:
+        raise ValueError("DownloadHomelessTS requires acs_file (national ACS pull)")
+    try:
+        ts_file = build_homeless_ts_csv(acs_path)
+        if step_log:
+            step_log(f"DownloadHomelessTS: {ts_file['size']}B wide CSV", level="success")
+        return {"ts_file": ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadHomelessTS: {exc}", level="error")
+        raise
+
+
 # RegistryRunner dispatch adapter
 _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACS": handle_download_acs,
@@ -183,6 +235,8 @@ _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACSDetailed": handle_download_acs_detailed,
     f"{NAMESPACE}.DownloadACSSocial": handle_download_acs_social,
     f"{NAMESPACE}.DownloadACSDemographics": handle_download_acs_demographics,
+    f"{NAMESPACE}.DownloadCHR": handle_download_chr,
+    f"{NAMESPACE}.DownloadHomelessTS": handle_download_homeless_ts,
 }
 
 

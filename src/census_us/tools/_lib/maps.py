@@ -85,6 +85,8 @@ def _state_aggregate(features: list[dict]) -> dict[str, float | None]:
                     summed[k] = summed.get(k, 0.0) + fv
     out: dict[str, float | None] = {}
     for m in metrics.METRICS:
+        if m.national_only:
+            continue
         if m.raw is not None:
             # Count metrics (total population) aggregate to the county sum;
             # median income / Gini can't be summed → None (filled by the
@@ -149,6 +151,8 @@ def _metric_js() -> str:
     """JS array describing each selectable layer (13 metrics + SVI)."""
     items = []
     for m in metrics.METRICS:
+        if m.national_only:
+            continue
         items.append({"key": f"m_{m.key}", "label": m.label, "fmt": m.fmt, "worse": m.worse})
     items.append({"key": "m_svi", "label": "Social Vulnerability Index", "fmt": "svi", "worse": "high"})
     return json.dumps(items)
@@ -325,6 +329,8 @@ def build_national_rankings(
         vals = state_vals.get(fips, {})
         p["state_name"] = _FIPS_NAME.get(fips, p.get("NAME", ""))
         for m in metrics.METRICS:
+            if m.national_only:
+                continue
             p[f"m_{m.key}"] = vals.get(m.key)
 
     html = _render_national_html(fc, state_vals, title=title)
@@ -435,7 +441,8 @@ map.on('load',()=>{{
 
 
 def _metric_js_national() -> str:
-    items = [{"key": f"m_{m.key}", "label": m.label, "fmt": m.fmt, "worse": m.worse} for m in metrics.METRICS]
+    items = [{"key": f"m_{m.key}", "label": m.label, "fmt": m.fmt, "worse": m.worse}
+             for m in metrics.METRICS if not m.national_only]
     return json.dumps(items)
 
 
@@ -646,6 +653,7 @@ def build_national_county_map(
     year: str = "2023",
     title: str = "Median household income by county",
     region: str = "us-income",
+    source_note: str = "",
     params: dict | None = None,
 ) -> NationalCountyResult:
     """One national county choropleth for a single registry metric.
@@ -732,6 +740,7 @@ def build_national_county_map(
     html = _render_national_county_html(
         fc, m, stops, title=title, year=year, county_count=len(features),
         valued_count=valued, params=params, top20=top20, bottom20=bottom20,
+        source_note=source_note,
     )
     html_path = cstore.join(out_dir, "index.html")
     with cstore.open_write(html_path, "w") as f:
@@ -752,6 +761,7 @@ def _render_national_county_html(
     params: dict | None = None,
     top20: list[dict] | None = None,
     bottom20: list[dict] | None = None,
+    source_note: str = "",
 ) -> str:
     data_js = json.dumps(fc, separators=(",", ":"))
     stops_js = json.dumps(stops)
@@ -759,9 +769,10 @@ def _render_national_county_html(
     _attr = attribution.footer_html(
         "census.workflows.BuildCountyMapsUS", params=params or {"metric": m.key}
     )
+    _src = source_note or f"ACS {year} 5-year"
     _desc = (
-        f"Every US county shaded by <b>{m.label.lower()}</b> (ACS {year} 5-year, "
-        f"table quantile scale — dark = {'lower' if m.worse == 'low' else 'higher'}). "
+        f"Every US county shaded by <b>{m.label.lower()}</b> ({_src}; "
+        f"quantile scale — dark = {'lower' if m.worse == 'low' else 'higher'}). "
         f"Click a county for its value and national rank. Grey = no estimate "
         f"(island territories, small-population suppression). "
         f"{valued_count:,} of {county_count:,} counties have data."
@@ -817,6 +828,8 @@ const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
   if('{m.fmt}'==='index') return (Math.round(v*1000)/1000).toString();
   if('{m.fmt}'==='count') return Math.round(v).toLocaleString();
   if('{m.fmt}'==='years') return (Math.round(v*10)/10)+' yrs';
+  if('{m.fmt}'==='per100k') return (Math.round(v*10)/10)+' /100k';
+  if('{m.fmt}'==='per10k') return (Math.round(v*10)/10)+' /10k';
   return (Math.round(v*10)/10)+'%'; }};
 const sc=document.getElementById('lgscale');
 STOPS.forEach(([v,c])=>{{const d=document.createElement('div');
@@ -850,6 +863,309 @@ map.on('load',()=>{{
   map.on('mouseenter','fill',()=>map.getCanvas().style.cursor='pointer');
   map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
 }});
+{mapsearch.search_js("NAME")}
+{attribution.ABOUT_MODAL_JS}
+</script>
+{attribution.about_modal_html(_about)}
+{_attr}</body></html>"""
+
+
+# ---------------------------------------------------------------------------
+# National county TIME map — one metric, a year slider + play button.
+# ---------------------------------------------------------------------------
+
+
+# First ACS 5-year vintage in which a metric's source table exists (default
+# 2010): B15003 (education) and B23025 (employment) first appear in 2012.
+TS_METRIC_START = {"no_bachelors": 2012, "less_than_hs": 2012, "hs_only": 2012,
+                   "grad_degree": 2012, "unemployment": 2012}
+
+
+def acs_timeseries_values(
+    metric_key: str, start_year: int, end_year: int
+) -> dict[int, dict[str, float | None]]:
+    """{year: {fips: value}} via one national per-metric ACS pull per vintage.
+
+    Each pull requests ONLY the metric's own columns, so the column set is
+    valid for every vintage it covers (the full default batch would 400 on
+    older vintages where newer tables don't exist). Pulls are cached per
+    (metric, year).
+    """
+    m = metrics.BY_KEY[metric_key]
+    cols = [m.raw] if m.raw else list(dict.fromkeys([*m.num, m.den]))
+    colstr = ",".join(c for c in cols if c)
+    start_year = max(start_year, TS_METRIC_START.get(metric_key, 2010))
+    out: dict[int, dict[str, float | None]] = {}
+    for y in range(start_year, end_year + 1):
+        res = downloader.download_acs(
+            year=str(y), state_fips="us", columns=colstr, tag=f"ts-{metric_key}"
+        )
+        out[y] = {
+            fips: metrics.compute_metric(row, m)
+            for fips, row in _read_acs_rows(res["path"]).items()
+        }
+    return out
+
+
+def wide_csv_values(path: str) -> dict[int, dict[str, float | None]]:
+    """{year: {fips: value}} from a normalized wide CSV (GEOID, NAME, y2002…)."""
+    import csv as _csv
+
+    out: dict[int, dict[str, float | None]] = {}
+    with cstore.open_read(path, newline="") as f:
+        reader = _csv.DictReader(f)
+        year_cols = [c for c in (reader.fieldnames or []) if c.startswith("y") and c[1:].isdigit()]
+        for row in reader:
+            fips = (row.get("GEOID", "") or "").rsplit("US", 1)[-1]
+            if len(fips) != 5:
+                continue
+            for c in year_cols:
+                y = int(c[1:])
+                v = row.get(c, "")
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    fv = None
+                out.setdefault(y, {})[fips] = fv
+    return out
+
+
+def build_national_county_time_map(
+    tiger_path: str,
+    metric_key: str,
+    values_by_year: dict[int, dict[str, float | None]],
+    *,
+    title: str,
+    region: str,
+    source_note: str = "",
+    params: dict | None = None,
+) -> NationalCountyResult:
+    """One national county choropleth with a YEAR SLIDER (+ play) over
+    ``values_by_year``. Color stops are pooled quantiles across ALL years so
+    shading is comparable as the slider moves; the highest/lowest-20 side
+    panel and the click popup re-rank for the selected year in the browser.
+    """
+    m = metrics.BY_KEY.get(metric_key)
+    if m is None:
+        raise ValueError(f"Unknown metric: {metric_key}. Known: {sorted(metrics.BY_KEY)}")
+    years = sorted(y for y in values_by_year if values_by_year[y])
+    if not years:
+        raise ValueError(f"No yearly values supplied for {metric_key}")
+
+    # County display names: ACS pulls carry none here, so build from TIGER.
+    features = _national_county_features(tiger_path)
+    valued_latest = 0
+    latest = years[-1]
+    for feat in features:
+        props = feat.get("properties") or {}
+        fips = props.get("GEOID") or f"{props.get('STATEFP', '')}{props.get('COUNTYFP', '')}"
+        state = _FIPS_NAME.get((fips or "")[:2], "")
+        name = props.get("NAMELSAD") or props.get("NAME") or "County"
+        b = _feat_bbox(feat)
+        new_props: dict[str, Any] = {
+            "GEOID": fips,
+            "NAME": f"{name}, {state}" if state else name,
+            "cx": round((b[0] + b[2]) / 2, 3),
+            "cy": round((b[1] + b[3]) / 2, 3),
+        }
+        for y in years:
+            new_props[f"y{y}"] = values_by_year[y].get(fips)
+        feat["properties"] = new_props
+        if new_props[f"y{latest}"] is not None:
+            valued_latest += 1
+
+    # Pooled quantile stops across every year → stable cross-year shading.
+    pooled = sorted(
+        v for y in years for v in values_by_year[y].values() if v is not None
+    )
+    ramp = list(reversed([c for _v, c in _RAMP])) if m.worse == "low" else [c for _v, c in _RAMP]
+    stops: list[tuple[float, str]] = []
+    if pooled:
+        last = None
+        for (frac, _c), color in zip(_RAMP, ramp):
+            v = float(pooled[min(int(frac * (len(pooled) - 1)), len(pooled) - 1)])
+            if last is not None and v <= last:
+                v = last + abs(last) * 1e-6 + 1e-9
+            stops.append((v, color))
+            last = v
+
+    fc = {"type": "FeatureCollection", "features": features}
+    out_dir = cstore.join(cstore.output_root(), "national", region or metric_key.replace("_", "-"))
+    geo_path = cstore.join(out_dir, "counties.geojson")
+    with cstore.open_write(geo_path, "w") as f:
+        f.write(json.dumps(fc, separators=(",", ":")))
+
+    html = _render_national_time_html(
+        fc, m, stops, years, title=title, valued_latest=valued_latest,
+        county_count=len(features), source_note=source_note, params=params,
+    )
+    html_path = cstore.join(out_dir, "index.html")
+    with cstore.open_write(html_path, "w") as f:
+        f.write(html)
+    return NationalCountyResult(geo_path, html_path, len(features), valued_latest)
+
+
+def _render_national_time_html(
+    fc: dict,
+    m: metrics.Metric,
+    stops: list[tuple[float, str]],
+    years: list[int],
+    *,
+    title: str,
+    valued_latest: int,
+    county_count: int,
+    source_note: str = "",
+    params: dict | None = None,
+) -> str:
+    data_js = json.dumps(fc, separators=(",", ":"))
+    stops_js = json.dumps(stops)
+    years_js = json.dumps(years)
+    _attr = attribution.footer_html(
+        "census.workflows.BuildCountyTimeMapsUS", params=params or {"metric": m.key}
+    )
+    src = source_note or f"US Census ACS 5-year estimates, {years[0]}–{years[-1]} vintages."
+    _desc = (
+        f"Every US county shaded by <b>{m.label.lower()}</b> — drag the year "
+        f"slider or press &#9654; to animate {years[0]}–{years[-1]}. Colors use one "
+        f"pooled quantile scale across all years, so shades are comparable over time. "
+        f"Click a county for its value and that year's national rank. Grey = no "
+        f"estimate. {valued_latest:,} of {county_count:,} counties have {years[-1]} data."
+    )
+    _about = f"<p><b>{title}</b></p><p>{_desc}</p><p>Source: {src}</p>"
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  html,body,#map{{margin:0;height:100%;width:100%;font-family:system-ui,sans-serif}}
+  .panel{{position:absolute;z-index:1;background:rgba(255,255,255,.93);padding:10px 12px;
+    border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:12px}}
+  #ctl{{top:10px;left:10px;max-width:340px}}
+  #ctl h3{{margin:0 0 6px;font-size:14px}}
+  #yearrow{{display:flex;align-items:center;gap:8px;margin-top:8px}}
+  #yearrow input[type=range]{{flex:1}}
+  #yr{{font-weight:700;font-size:15px;min-width:44px;text-align:center}}
+  #play{{border:1px solid #888;background:#fff;border-radius:4px;cursor:pointer;
+    font-size:13px;padding:2px 9px}}
+  #legend{{bottom:18px;left:10px}} #legend .scale{{display:flex;margin-top:4px}}
+  #legend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
+  #legend .scale span{{width:44px;height:12px}}
+  #ranks{{top:10px;right:10px;width:250px;max-height:calc(100% - 40px);overflow-y:auto;padding:8px 10px}}
+  #ranks h4{{margin:6px 0 3px;font-size:12px;color:#333}}
+  #ranks ol{{margin:0 0 4px;padding-left:22px}}
+  #ranks li{{cursor:pointer;padding:1px 0;line-height:1.35}}
+  #ranks li:hover{{background:#f0f4ff}}
+  #ranks li .v{{float:right;color:#555;margin-left:6px}}
+  #rktoggle{{position:absolute;top:0;right:0;border:none;background:none;font-size:14px;
+    cursor:pointer;color:#666;padding:6px 8px}}
+  #ranks.closed ol,#ranks.closed h4{{display:none}}
+  #ranks.closed{{width:auto;padding-right:26px}}
+  .maplibregl-popup-content{{max-width:300px;font-size:12px}}
+  .maplibregl-popup-content h4{{margin:0 0 4px;font-size:13px}}
+  {attribution.ABOUT_MODAL_CSS}
+  {mapsearch.search_css_rules()}
+</style></head>
+<body>
+<div id="map"></div>
+{mapsearch.search_html("Find a county by name…")}
+<div id="ctl" class="panel">
+  <h3>{title}</h3>
+  <div style="color:#555">{_desc}</div>
+  <div id="yearrow"><button id="play">&#9654;</button>
+    <input type="range" id="yslider" min="0" max="{len(years) - 1}" value="{len(years) - 1}" step="1">
+    <span id="yr">{years[-1]}</span></div>
+  {attribution.ABOUT_MODAL_BUTTON}
+</div>
+<div id="ranks" class="panel"><b style="font-size:12px"><span id="rkyr">{years[-1]}</span> {m.label}: extremes</b>
+  <button id="rktoggle" title="collapse">&#9656;</button>
+  <h4>Highest 20</h4><ol id="rktop"></ol>
+  <h4>Lowest 20</h4><ol id="rkbot"></ol>
+</div>
+<div id="legend" class="panel"><b>{m.label}</b><div class="scale" id="lgscale"></div></div>
+<script>
+const DATA={data_js}, STOPS={stops_js}, YEARS={years_js};
+let yi=YEARS.length-1;
+const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
+  if('{m.fmt}'==='dollar') return '$'+Math.round(v).toLocaleString();
+  if('{m.fmt}'==='index') return (Math.round(v*1000)/1000).toString();
+  if('{m.fmt}'==='count') return Math.round(v).toLocaleString();
+  if('{m.fmt}'==='years') return (Math.round(v*10)/10)+' yrs';
+  if('{m.fmt}'==='per100k') return (Math.round(v*10)/10)+' /100k';
+  if('{m.fmt}'==='per10k') return (Math.round(v*10)/10)+' /10k';
+  return (Math.round(v*10)/10)+'%'; }};
+const sc=document.getElementById('lgscale');
+STOPS.forEach(([v,c])=>{{const d=document.createElement('div');
+  d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(v)}}`; sc.appendChild(d);}});
+function exprFor(y){{const e=['interpolate',['linear'],['get','y'+y]];
+  for(const [v,c] of STOPS) e.push(v,c);
+  return ['case',['==',['get','y'+y],null],'{_NODATA}',e];}}
+let ranksAsc=[];  // features sorted ascending by current-year value
+function reRank(y){{
+  const k='y'+y;
+  ranksAsc=DATA.features.filter(f=>typeof f.properties[k]==='number')
+    .sort((a,b)=>a.properties[k]-b.properties[k]);
+  const n=ranksAsc.length;
+  const top=ranksAsc.slice(-20).reverse(), bot=ranksAsc.slice(0,20);
+  for(const [id,items] of [['rktop',top],['rkbot',bot]]){{
+    const ol=document.getElementById(id); ol.innerHTML='';
+    for(const f of items){{const p=f.properties, v=p[k];
+      const li=document.createElement('li');
+      li.innerHTML=`${{p.NAME}}<span class="v">${{fmt(v)}}</span>`;
+      li.onclick=()=>{{map.flyTo({{center:[p.cx,p.cy],zoom:7}});
+        popupFor(p,[p.cx,p.cy]);}};
+      ol.appendChild(li);}}
+  }}
+  document.getElementById('rkyr').textContent=y;
+}}
+function rankOf(p,y){{const k='y'+y, v=p[k];
+  if(typeof v!=='number'||!ranksAsc.length) return null;
+  // rank 1 = {'highest' if m.worse == 'low' else 'lowest'} value ({'worse=low' if m.worse == 'low' else 'worse=high'})
+  let lo=0,hi=ranksAsc.length;
+  while(lo<hi){{const mid=(lo+hi)>>1;
+    if(ranksAsc[mid].properties[k]<v) lo=mid+1; else hi=mid;}}
+  const asc=lo+1;
+  return {'ranksAsc.length-asc+1' if m.worse == 'low' else 'asc'};
+}}
+function popupFor(p,lngLat){{const y=YEARS[yi], v=p['y'+y], r=rankOf(p,y);
+  let hist='';
+  for(const yy of YEARS) if(p['y'+yy]!==null&&p['y'+yy]!==undefined)
+    hist+=`<tr${{yy===y?' style="font-weight:700"':''}}><td>${{yy}}</td><td style="text-align:right">${{fmt(p['y'+yy])}}</td></tr>`;
+  new maplibregl.Popup({{closeButton:true,maxWidth:'300px'}}).setLngLat(lngLat)
+    .setHTML(`<h4>${{p.NAME||'County'}}</h4>${{y}} {m.label}: <b>${{fmt(v)}}</b><br>`+
+      `National rank: ${{r?('#'+r.toLocaleString()+' of '+ranksAsc.length.toLocaleString()):'no estimate'}}`+
+      `<details><summary>history</summary><table style="font-size:11px">${{hist}}</table></details>`).addTo(map);
+}}
+const map=new maplibregl.Map({{container:'map',style:{{version:8,
+  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38.5],zoom:3.4}});
+map.addControl(new maplibregl.NavigationControl(),'bottom-right');
+const slider=document.getElementById('yslider'), yrlab=document.getElementById('yr');
+function setYear(i){{yi=i; const y=YEARS[yi]; yrlab.textContent=y;
+  if(map.getLayer('fill')) map.setPaintProperty('fill','fill-color',exprFor(y));
+  reRank(y);}}
+slider.oninput=()=>setYear(+slider.value);
+let timer=null;
+document.getElementById('play').onclick=function(){{
+  if(timer){{clearInterval(timer);timer=null;this.innerHTML='&#9654;';return;}}
+  this.innerHTML='&#9646;&#9646;';
+  timer=setInterval(()=>{{const nxt=(yi+1)%YEARS.length;
+    slider.value=nxt; setYear(nxt);
+    if(nxt===YEARS.length-1){{clearInterval(timer);timer=null;
+      document.getElementById('play').innerHTML='&#9654;';}}
+  }},750);}};
+map.on('load',()=>{{
+  map.addSource('c',{{type:'geojson',data:DATA}});
+  map.addLayer({{id:'fill',type:'fill',source:'c',paint:{{
+    'fill-color':exprFor(YEARS[yi]),'fill-opacity':0.8}}}});
+  map.addLayer({{id:'line',type:'line',source:'c',paint:{{'line-color':'#555','line-width':0.3}}}});
+  reRank(YEARS[yi]);
+  map.on('click','fill',e=>popupFor(e.features[0].properties||{{}},e.lngLat));
+  map.on('mouseenter','fill',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','fill',()=>map.getCanvas().style.cursor='');
+}});
+document.getElementById('rktoggle').onclick=()=>{{
+  document.getElementById('ranks').classList.toggle('closed');}};
 {mapsearch.search_js("NAME")}
 {attribution.ABOUT_MODAL_JS}
 </script>

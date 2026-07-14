@@ -34,12 +34,20 @@ from census_us.tools._lib import (  # noqa: F401
     svi,
     tiger_extractor,
 )
+from census_us.tools._lib.indicators import (  # noqa: F401
+    build_chr_indicators_csv,
+    build_chr_jobless_ts_csv,
+    build_homeless_ts_csv,
+)
 from census_us.tools._lib.maps import (  # noqa: F401
+    acs_timeseries_values,
     build_metrics_index,
     build_metrics_map,
     build_national_county_map,
+    build_national_county_time_map,
     build_national_rankings,
     build_state_metrics,
+    wide_csv_values,
 )
 from census_us.tools._lib.publish import (  # noqa: F401
     publish_bundles,
@@ -83,7 +91,13 @@ __all__ = [
     "tiger_extractor",
     "build_metrics_index",
     "build_metrics_map",
+    "acs_timeseries_values",
+    "build_chr_indicators_csv",
+    "build_chr_jobless_ts_csv",
+    "build_homeless_ts_csv",
     "build_national_county_map",
+    "build_national_county_time_map",
+    "wide_csv_values",
     "build_national_rankings",
     "build_state_metrics",
     "publish_bundles",

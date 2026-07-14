@@ -48,6 +48,8 @@ class Metric:
     raw: str | None = None  # direct value column (median income, gini)
     invert: bool = False  # value = scale - (num/den*scale)  (e.g. "no bachelor's")
     scale: float = 100.0
+    national_only: bool = False  # computed only on national maps (external
+    # source columns / time series absent from the per-state joined GeoJSON)
 
 
 # Order here = display order in the dropdown / rankings.
@@ -86,6 +88,17 @@ METRICS: list[Metric] = [
            raw="B01001_001E", scale=1.0),
     Metric("median_age", "Median age", "years", "high", False,
            raw="B01002_001E", scale=1.0),
+    Metric("median_rent", "Median gross rent", "dollar", "high", False,
+           raw="B25064_001E", scale=1.0),
+    # External-source national metrics (County Health Rankings / HUD) — the
+    # columns exist only in the normalized indicator CSVs, never in the
+    # per-state joined GeoJSON, so these stay off the state-map dropdowns.
+    Metric("homicide", "Homicides per 100k", "per100k", "high", False,
+           raw="chr_homicide", scale=1.0, national_only=True),
+    Metric("violent_crime", "Violent crime per 100k", "per100k", "high", False,
+           raw="chr_violent_crime", scale=1.0, national_only=True),
+    Metric("homeless_rate", "Homeless per 10k residents", "per10k", "high", False,
+           raw="hud_homeless_rate", scale=1.0, national_only=True),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,

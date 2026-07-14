@@ -365,6 +365,122 @@ namespace census.workflows {
     }
 
     /**
+     * The national county TIME-map family: one year-slider choropleth per ACS
+     * registry metric via andThen foreach. Each iteration pulls one national
+     * per-metric ACS request per 5-year vintage (cached), so shading animates
+     * 2010-2023 (education clamps to 2012 — its table first exists then).
+     * These land in the SAME regions as the snapshot maps and supersede them.
+     */
+    workflow BuildCountyTimeMapsUS(
+        start_year: Long = 2010,
+        end_year: Long = 2023,
+        maps: Json = [
+            #{"metric": "median_income", "title": "Median household income by county", "region": "us-income"},
+            #{"metric": "poverty", "title": "Poverty rate by county", "region": "us-poverty"},
+            #{"metric": "no_bachelors", "title": "Education: adults without a bachelor's degree", "region": "us-education"},
+            #{"metric": "elderly", "title": "Population aged 65+ by county", "region": "us-age"},
+            #{"metric": "median_age", "title": "Median age by county", "region": "us-median-age"},
+            #{"metric": "median_rent", "title": "Median gross rent by county", "region": "us-rent"}
+        ]
+    ) => (status: String, html_path: String, metric: String, detail: String) andThen foreach mp in $.maps {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        map = BuildNationalCountyTimeMap(
+            tiger_file = tiger.file,
+            metric = $.mp.metric,
+            start_year = $.start_year,
+            end_year = $.end_year,
+            title = $.mp.title,
+            region = $.mp.region
+        )
+        yield BuildCountyTimeMapsUS(
+            status = "completed",
+            html_path = map.html_path,
+            metric = $.mp.metric,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
+     * Murder + violent-crime national county snapshots from County Health
+     * Rankings: homicides (CDC death records per 100k, pooled multi-year,
+     * small counties suppressed → grey) and violent crime (FBI UCR per 100k,
+     * 2014/2016 — the last comparable national county series).
+     */
+    workflow BuildCrimeMapsUS() => (status: String, murder_path: String, crime_path: String) andThen {
+        chr = DownloadCHR()
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        murder = BuildNationalIndicatorMap(
+            tiger_file = tiger.file,
+            indicators_file = chr.indicators_file,
+            metric = "homicide",
+            title = "Homicide rate by county",
+            region = "us-murder",
+            source_note = "CDC NVSS death records via County Health Rankings 2025, deaths per 100,000 pooled over multiple years; counts under 10 are suppressed, so many small counties show no estimate"
+        )
+        crime = BuildNationalIndicatorMap(
+            tiger_file = tiger.file,
+            indicators_file = chr.indicators_file,
+            metric = "violent_crime",
+            title = "Violent crime rate by county",
+            region = "us-crime",
+            source_note = "FBI Uniform Crime Reporting via County Health Rankings 2022 - 2014/2016 data, the last comparable national county series before the NIBRS reporting transition"
+        )
+        yield BuildCrimeMapsUS(
+            status = "completed",
+            murder_path = murder.html_path,
+            crime_path = crime.html_path
+        )
+    }
+
+    /**
+     * Jobless-rate national county TIME map: BLS-derived annual county
+     * unemployment 2002-2022 (County Health Rankings trends) - the one
+     * county series that genuinely covers ~20 years.
+     */
+    workflow BuildJoblessTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        chr = DownloadCHR()
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = chr.jobless_ts_file,
+            metric = "unemployment",
+            title = "Unemployment rate by county",
+            region = "us-jobless",
+            source_note = "BLS Local Area Unemployment Statistics via County Health Rankings trends, annual county averages 2002-2022."
+        )
+        yield BuildJoblessTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
+     * Homeless-rate national county TIME map (2007-2024), an explicit
+     * APPROXIMATION: HUD Point-in-Time counts are by Continuum of Care, so
+     * CoC totals are apportioned to member counties by population share
+     * (2017-vintage crosswalk) and shown per 10,000 residents.
+     */
+    workflow BuildHomelessTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        acs = DownloadACS(state_fips = "us")
+        hud = DownloadHomelessTS(acs_file = acs.file)
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = hud.ts_file,
+            metric = "homeless_rate",
+            title = "Homeless per 10,000 residents by county",
+            region = "us-homeless",
+            source_note = "HUD Point-in-Time counts by Continuum of Care (2007-2024), apportioned to counties by each county's population share of its CoC (Byrne HUD-CoC crosswalk, 2017 boundaries) - an approximation, not a direct county count; denominator is current ACS population"
+        )
+        yield BuildHomelessTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).
