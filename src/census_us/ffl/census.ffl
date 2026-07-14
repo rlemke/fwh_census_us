@@ -579,6 +579,29 @@ namespace census.workflows {
     }
 
     /**
+     * Suicide-rate national county TIME map: CDC injury-surveillance annual
+     * county rates 2019-2024 (the longest open ANNUAL county suicide series;
+     * older data exists only in suppressed or pooled forms).
+     */
+    workflow BuildSuicideTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        su = DownloadSuicideTS()
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = su.ts_file,
+            metric = "suicide",
+            title = "Suicide deaths by county",
+            region = "us-suicide",
+            source_note = "CDC injury surveillance (NVSS), annual county suicide rates 2019-2024 per 100,000; rates in counties with fewer than 10 deaths are flagged statistically unstable by CDC but published - interpret small-county values with care"
+        )
+        yield BuildSuicideTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

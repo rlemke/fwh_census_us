@@ -98,6 +98,11 @@ namespace census.Operations {
       * model-smoothed) → wide time CSV. One data.cdc.gov pull. */
     event facet DownloadDrugOverdoseTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
+    /** CDC injury-surveillance county SUICIDE rates — ANNUAL 2019-2024, per
+      * 100,000 (full county coverage; small-count rates flagged unstable by
+      * CDC but published) → wide time CSV. One data.cdc.gov pull. */
+    event facet DownloadSuicideTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit

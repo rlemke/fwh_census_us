@@ -113,6 +113,8 @@ METRICS: list[Metric] = [
            raw="scp_cancer_mortality", scale=1.0, national_only=True),
     Metric("drug_overdose", "Drug overdose deaths per 100k", "per100k", "high", False,
            raw="cdc_drug_overdose", scale=1.0, national_only=True),
+    Metric("suicide", "Suicide deaths per 100k", "per100k", "high", False,
+           raw="cdc_suicide", scale=1.0, national_only=True),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,

@@ -223,3 +223,14 @@ class TestMortalitySources:
         out = indicators.parse_drug_od_csv(str(p))
         assert out["06075"] == {2021: 52.6}
         assert out["54047"] == {2003: 22.1, 2021: 164.6}
+
+    def test_parse_suicide(self, tmp_path):
+        p = tmp_path / "su.csv"
+        with open(p, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["period", "geoid", "rate"])
+            wr.writerow(["2023", "6075", "10.3"])
+            wr.writerow(["TTM", "6075", "11.0"])  # trailing-12-month row skipped
+            wr.writerow(["2019", "54047", "20.1"])
+        out = indicators.parse_suicide_csv(str(p))
+        assert out == {"06075": {2023: 10.3}, "54047": {2019: 20.1}}

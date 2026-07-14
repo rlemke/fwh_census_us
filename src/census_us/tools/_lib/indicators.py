@@ -591,3 +591,53 @@ def build_drug_overdose_ts_csv() -> dict[str, Any]:
             )
     logger.info("NCHS drug OD: %d counties x %d years -> %s", len(series), len(years), dest)
     return _file_info(dest, DRUG_OD_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# CDC injury surveillance — county suicide rates, annual 2019-2024.
+# ---------------------------------------------------------------------------
+
+SUICIDE_URL = (
+    "https://data.cdc.gov/resource/psx4-wq38.csv"
+    "?$limit=50000&$select=period,geoid,rate&intent=All_Suicide"
+)
+
+
+def parse_suicide_csv(path: str) -> dict[str, dict[int, float]]:
+    """{fips: {year: rate}} — non-annual periods (TTM) are skipped."""
+    out: dict[str, dict[int, float]] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in csv.DictReader(f):
+            y = (row.get("period") or "").strip()
+            fips = (row.get("geoid") or "").strip().zfill(5)
+            if not y.isdigit() or len(fips) != 5:
+                continue
+            try:
+                val = float(row.get("rate", ""))
+            except (TypeError, ValueError):
+                continue
+            out.setdefault(fips, {})[int(y)] = round(val, 1)
+    return out
+
+
+def build_suicide_ts_csv() -> dict[str, Any]:
+    """CDC injury-surveillance county suicide rates (annual 2019-2024, per
+    100k; small-count rates are flagged unstable by CDC but published) →
+    wide time CSV. One data.cdc.gov pull."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    raw = _fetch(SUICIDE_URL, cstore.join(cache, "cdc_suicide.csv"), min_bytes=100000)
+    series = parse_suicide_csv(raw)
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError("No suicide rows parsed")
+    dest = cstore.join(cache, "cdc_suicide_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", ""]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info("CDC suicide: %d counties x %d years -> %s", len(series), len(years), dest)
+    return _file_info(dest, SUICIDE_URL, False)
