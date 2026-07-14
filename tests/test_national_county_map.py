@@ -87,7 +87,7 @@ class TestNationalACSPull:
 
 
 class TestBuildNationalCountyMap:
-    def _build(self, tmp_path, metric="median_income"):
+    def _build(self, tmp_path, metric="median_income", detail=False):
         acs = _write_acs_csv(
             tmp_path / "acs_us.csv",
             [
@@ -96,6 +96,18 @@ class TestBuildNationalCountyMap:
                 ["0500000US48001", "Anderson County, Texas", "-666666666"],  # suppressed
             ],
         )
+        detail_path = None
+        if detail:
+            # B01001: total pop + one 65+ band (male 65-66) per county
+            dp = tmp_path / "acs_us_detail.csv"
+            with open(dp, "w", newline="") as f:
+                wr = csv.writer(f)
+                wr.writerow(["GEOID", "NAME", "B01001_001E", "B01001_020E"])
+                wr.writerows([
+                    ["0500000US01001", "Autauga County, Alabama", "1000", "100"],
+                    ["0500000US06001", "Alameda County, California", "1000", "300"],
+                ])
+            detail_path = str(dp)
         tiger = _write_county_zip(
             tmp_path / "us_county.zip",
             [
@@ -105,7 +117,9 @@ class TestBuildNationalCountyMap:
                 ("66", "010", "Guam", 144.7, 13.4),  # no ACS row at all
             ],
         )
-        return build_national_county_map(str(acs), str(tiger), metric=metric)
+        return build_national_county_map(
+            str(acs), str(tiger), detail_path=detail_path, metric=metric
+        )
 
     def test_counts_and_outputs(self, out_env, tmp_path):
         res = self._build(tmp_path)
@@ -142,6 +156,30 @@ class TestBuildNationalCountyMap:
     def test_unknown_metric_raises(self, out_env, tmp_path):
         with pytest.raises(ValueError, match="Unknown metric"):
             self._build(tmp_path, metric="nope")
+
+    def test_detail_merge_age_metric(self, out_env, tmp_path):
+        """elderly computes from the merged detailed batch (B01001)."""
+        res = self._build(tmp_path, metric="elderly", detail=True)
+        assert res.valued_count == 2
+        with open(res.output_path) as f:
+            fc = json.load(f)
+        by_geoid = {ft["properties"]["GEOID"]: ft["properties"] for ft in fc["features"]}
+        assert by_geoid["01001"]["val"] == 10.0  # 100/1000
+        assert by_geoid["06001"]["val"] == 30.0
+        # elderly is worse=high → rank 1 = lowest share
+        assert by_geoid["01001"]["rank"] == 1
+
+    def test_rank_side_lists_in_html(self, out_env, tmp_path):
+        res = self._build(tmp_path)
+        with open(res.html_path) as f:
+            html = f.read()
+        assert "Highest 20" in html and "Lowest 20" in html
+        # RANKS payload: highest-first top list led by Alameda
+        import re
+        ranks = json.loads(re.search(r"RANKS=(\{.*?\});", html).group(1))
+        assert ranks["top"][0]["n"] == "Alameda County, California"
+        assert ranks["bottom"][0]["n"] == "Autauga County, Alabama"
+        assert len(ranks["top"][0]["c"]) == 2  # centroid for flyTo
 
 
 class TestHandlerDispatch:

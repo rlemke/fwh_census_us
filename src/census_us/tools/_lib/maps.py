@@ -576,6 +576,11 @@ def _round_coords(coords, nd: int = 3):
     return [_round_coords(c, nd) for c in coords]
 
 
+def _feat_bbox(feat: dict) -> list[float]:
+    """[minx, miny, maxx, maxy] of one feature (delegates to the FC helper)."""
+    return svi_lib._bbox({"features": [feat]})
+
+
 def _national_county_features(tiger_zip: str) -> list[dict]:
     """Read the national TIGER county ZIP → simplified, coordinate-rounded
     features so ~3,200 counties fit inline in one HTML (the same
@@ -617,10 +622,24 @@ def _national_county_features(tiger_zip: str) -> list[dict]:
     return features
 
 
+def _read_acs_rows(path: str) -> dict[str, dict]:
+    """{5-digit county fips: CSV row} from a national county ACS pull."""
+    import csv as _csv
+
+    out: dict[str, dict] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in _csv.DictReader(f):
+            fips = (row.get("GEOID", "") or "").rsplit("US", 1)[-1]
+            if len(fips) == 5:
+                out[fips] = row
+    return out
+
+
 def build_national_county_map(
     acs_path: str,
     tiger_path: str,
     *,
+    detail_path: str | None = None,
     metric: str = "median_income",
     year: str = "2023",
     title: str = "Median household income by county",
@@ -630,23 +649,27 @@ def build_national_county_map(
     """One national county choropleth for a single registry metric.
 
     ``acs_path`` is a national county pull (download_acs(state_fips="us")) —
-    GEOID rows "0500000US<st><cty>". ``tiger_path`` is the national TIGER
-    county ZIP (download_tiger COUNTY). Counties present in TIGER but absent
-    from the ACS pull (island territories, suppressed estimates) shade grey.
+    GEOID rows "0500000US<st><cty>". ``detail_path`` (optional) is the national
+    detailed batch (B01001 age bands); its columns are merged per county so
+    age-based metrics compute. ``tiger_path`` is the national TIGER county ZIP
+    (download_tiger COUNTY). Counties present in TIGER but absent from the ACS
+    pull (island territories, suppressed estimates) shade grey.
     """
     m = metrics.BY_KEY.get(metric)
     if m is None:
         raise ValueError(f"Unknown metric: {metric}. Known: {sorted(metrics.BY_KEY)}")
 
-    # {5-digit fips: (value, "County, State")} from the ACS CSV
-    vals: dict[str, tuple[float | None, str]] = {}
-    import csv as _csv
-
-    with cstore.open_read(acs_path, newline="") as f:
-        for row in _csv.DictReader(f):
-            fips = (row.get("GEOID", "") or "").rsplit("US", 1)[-1]
-            if len(fips) == 5:
-                vals[fips] = (metrics.compute_metric(row, m), row.get("NAME", ""))
+    rows = _read_acs_rows(acs_path)
+    if detail_path:
+        for fips, drow in _read_acs_rows(detail_path).items():
+            base = rows.setdefault(fips, {})
+            for k, v in drow.items():
+                base.setdefault(k, v)
+    # {5-digit fips: (value, "County, State")}
+    vals: dict[str, tuple[float | None, str]] = {
+        fips: (metrics.compute_metric(row, m), row.get("NAME", ""))
+        for fips, row in rows.items()
+    }
 
     features = _national_county_features(tiger_path)
     valued = 0
@@ -683,6 +706,21 @@ def build_national_county_map(
             stops.append((v, color))
             last = v
 
+    # Top/bottom-20 side lists: highest and lowest raw values, with a centroid
+    # per entry so a click can fly the map there. `ranked` is best→worst by the
+    # metric's direction, so map it back to plain highest/lowest.
+    def _entry(ft):
+        p = ft["properties"]
+        b = _feat_bbox(ft)
+        return {
+            "n": p["NAME"], "v": p["val"], "r": p["rank"],
+            "c": [round((b[0] + b[2]) / 2, 3), round((b[1] + b[3]) / 2, 3)],
+        }
+
+    by_value = ranked if m.worse == "low" else list(reversed(ranked))  # highest first
+    top20 = [_entry(ft) for ft in by_value[:20]]
+    bottom20 = [_entry(ft) for ft in list(reversed(by_value))[:20]]
+
     fc = {"type": "FeatureCollection", "features": features}
     out_dir = cstore.join(cstore.output_root(), "national", region or metric.replace("_", "-"))
     geo_path = cstore.join(out_dir, "counties.geojson")
@@ -691,7 +729,7 @@ def build_national_county_map(
 
     html = _render_national_county_html(
         fc, m, stops, title=title, year=year, county_count=len(features),
-        valued_count=valued, params=params,
+        valued_count=valued, params=params, top20=top20, bottom20=bottom20,
     )
     html_path = cstore.join(out_dir, "index.html")
     with cstore.open_write(html_path, "w") as f:
@@ -710,11 +748,14 @@ def _render_national_county_html(
     county_count: int,
     valued_count: int,
     params: dict | None = None,
+    top20: list[dict] | None = None,
+    bottom20: list[dict] | None = None,
 ) -> str:
     data_js = json.dumps(fc, separators=(",", ":"))
     stops_js = json.dumps(stops)
+    ranks_js = json.dumps({"top": top20 or [], "bottom": bottom20 or []}, separators=(",", ":"))
     _attr = attribution.footer_html(
-        "census.workflows.BuildIncomeMapUS", params=params or {"metric": m.key}
+        "census.workflows.BuildCountyMapsUS", params=params or {"metric": m.key}
     )
     _desc = (
         f"Every US county shaded by <b>{m.label.lower()}</b> (ACS {year} 5-year, "
@@ -738,6 +779,16 @@ def _render_national_county_html(
   #legend{{bottom:18px;left:10px}} #legend .scale{{display:flex;margin-top:4px}}
   #legend .scale div{{display:flex;flex-direction:column;align-items:center;font-size:10px}}
   #legend .scale span{{width:44px;height:12px}}
+  #ranks{{top:10px;right:10px;width:250px;max-height:calc(100% - 40px);overflow-y:auto;padding:8px 10px}}
+  #ranks h4{{margin:6px 0 3px;font-size:12px;color:#333}}
+  #ranks ol{{margin:0 0 4px;padding-left:22px}}
+  #ranks li{{cursor:pointer;padding:1px 0;line-height:1.35}}
+  #ranks li:hover{{background:#f0f4ff}}
+  #ranks li .v{{float:right;color:#555;margin-left:6px}}
+  #rktoggle{{position:absolute;top:0;right:0;border:none;background:none;font-size:14px;
+    cursor:pointer;color:#666;padding:6px 8px}}
+  #ranks.closed ol,#ranks.closed h4{{display:none}}
+  #ranks.closed{{width:auto;padding-right:26px}}
   .maplibregl-popup-content{{max-width:300px;font-size:12px}}
   .maplibregl-popup-content h4{{margin:0 0 4px;font-size:13px}}
   {attribution.ABOUT_MODAL_CSS}
@@ -751,9 +802,14 @@ def _render_national_county_html(
   <div style="color:#555">{_desc}</div>
   {attribution.ABOUT_MODAL_BUTTON}
 </div>
+<div id="ranks" class="panel"><b style="font-size:12px">{m.label}: extremes</b>
+  <button id="rktoggle" title="collapse">&#9656;</button>
+  <h4>Highest 20</h4><ol id="rktop"></ol>
+  <h4>Lowest 20</h4><ol id="rkbot"></ol>
+</div>
 <div id="legend" class="panel"><b>{m.label}</b><div class="scale" id="lgscale"></div></div>
 <script>
-const DATA={data_js}, STOPS={stops_js};
+const DATA={data_js}, STOPS={stops_js}, RANKS={ranks_js};
 const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
   if('{m.fmt}'==='dollar') return '$'+Math.round(v).toLocaleString();
   if('{m.fmt}'==='index') return (Math.round(v*1000)/1000).toString();
@@ -762,12 +818,23 @@ const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
 const sc=document.getElementById('lgscale');
 STOPS.forEach(([v,c])=>{{const d=document.createElement('div');
   d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(v)}}`; sc.appendChild(d);}});
+function fillRanks(listId,items){{const ol=document.getElementById(listId);
+  for(const it of items){{const li=document.createElement('li');
+    li.innerHTML=`${{it.n}}<span class="v">${{fmt(it.v)}}</span>`;
+    li.title=`national rank #${{it.r}} — click to zoom`;
+    li.onclick=()=>{{map.flyTo({{center:it.c,zoom:7}});
+      new maplibregl.Popup({{closeButton:true,maxWidth:'300px'}}).setLngLat(it.c)
+        .setHTML(`<h4>${{it.n}}</h4>{m.label}: <b>${{fmt(it.v)}}</b><br>National rank: #${{it.r.toLocaleString()}}`).addTo(map);}};
+    ol.appendChild(li);}}}}
+fillRanks('rktop',RANKS.top); fillRanks('rkbot',RANKS.bottom);
+document.getElementById('rktoggle').onclick=()=>{{
+  const rp=document.getElementById('ranks'); rp.classList.toggle('closed');}};
 const expr=['interpolate',['linear'],['get','val']];
 for(const [v,c] of STOPS) expr.push(v,c);
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
   sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38.5],zoom:3.4}});
-map.addControl(new maplibregl.NavigationControl());
+map.addControl(new maplibregl.NavigationControl(),'bottom-right');
 map.on('load',()=>{{
   map.addSource('c',{{type:'geojson',data:DATA}});
   map.addLayer({{id:'fill',type:'fill',source:'c',paint:{{
