@@ -376,6 +376,9 @@ def _chr_release_url(release: int) -> str:
 CHR_SERIES = {
     "obesity": ("v011_rawvalue", 100.0, -3, 2010, "chr_obesity"),
     "life_expectancy": ("v147_rawvalue", 1.0, -3, 2019, "chr_life_expectancy"),
+    "smoking": ("v009_rawvalue", 100.0, -3, 2010, "chr_smoking"),
+    # v060 first appears in the 2013 release (earlier releases auto-skip)
+    "diabetes": ("v060_rawvalue", 100.0, -3, 2013, "chr_diabetes"),
 }
 
 CHR_LATEST_RELEASE = 2025
