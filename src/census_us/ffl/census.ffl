@@ -340,7 +340,8 @@ namespace census.workflows {
             #{"metric": "median_income", "title": "Median household income by county", "region": "us-income"},
             #{"metric": "poverty", "title": "Poverty rate by county", "region": "us-poverty"},
             #{"metric": "no_bachelors", "title": "Education: adults without a bachelor's degree", "region": "us-education"},
-            #{"metric": "elderly", "title": "Population aged 65+ by county", "region": "us-age"}
+            #{"metric": "elderly", "title": "Population aged 65+ by county", "region": "us-age"},
+            #{"metric": "median_age", "title": "Median age by county", "region": "us-median-age"}
         ]
     ) => (status: String, html_path: String, metric: String, detail: String) andThen foreach mp in $.maps {
         acs = DownloadACS(state_fips = "us", year = $.year)

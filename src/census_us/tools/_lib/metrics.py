@@ -84,6 +84,8 @@ METRICS: list[Metric] = [
     # worse="high" just orients dark=more / rank highest-first).
     Metric("total_population", "Total population", "count", "high", False,
            raw="B01001_001E", scale=1.0),
+    Metric("median_age", "Median age", "years", "high", False,
+           raw="B01002_001E", scale=1.0),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,

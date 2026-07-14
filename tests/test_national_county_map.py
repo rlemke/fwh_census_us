@@ -44,10 +44,10 @@ def _write_county_zip(path, counties):
     return path
 
 
-def _write_acs_csv(path, rows):
+def _write_acs_csv(path, rows, extra_cols=()):
     with open(path, "w", newline="") as f:
         wr = csv.writer(f)
-        wr.writerow(["GEOID", "NAME", "B19013_001E"])
+        wr.writerow(["GEOID", "NAME", "B19013_001E", *extra_cols])
         wr.writerows(rows)
     return path
 
@@ -156,6 +156,31 @@ class TestBuildNationalCountyMap:
     def test_unknown_metric_raises(self, out_env, tmp_path):
         with pytest.raises(ValueError, match="Unknown metric"):
             self._build(tmp_path, metric="nope")
+
+    def test_median_age_years_metric(self, out_env, tmp_path):
+        """median_age (B01002, default batch) renders with the years format."""
+        acs = _write_acs_csv(
+            tmp_path / "acs_ma.csv",
+            [
+                ["0500000US01001", "Autauga County, Alabama", "58000", "38.6"],
+                ["0500000US06001", "Alameda County, California", "112000", "-666666666"],
+            ],
+            extra_cols=("B01002_001E",),
+        )
+        tiger = _write_county_zip(
+            tmp_path / "ma_county.zip",
+            [("01", "001", "Autauga", -86.6, 32.5), ("06", "001", "Alameda", -122.3, 37.7)],
+        )
+        res = build_national_county_map(str(acs), str(tiger), metric="median_age")
+        assert res.valued_count == 1
+        with open(res.html_path) as f:
+            html = f.read()
+        assert " yrs'" in html  # years formatter baked in
+        with open(res.output_path) as f:
+            fc = json.load(f)
+        by_geoid = {ft["properties"]["GEOID"]: ft["properties"] for ft in fc["features"]}
+        assert by_geoid["01001"]["val"] == 38.6
+        assert by_geoid["06001"]["val"] is None  # sentinel
 
     def test_detail_merge_age_metric(self, out_env, tmp_path):
         """elderly computes from the merged detailed batch (B01001)."""
