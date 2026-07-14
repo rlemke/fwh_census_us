@@ -520,6 +520,43 @@ namespace census.workflows {
     }
 
     /**
+     * Heart-disease + cancer mortality national county maps. Heart disease is
+     * a TRUE ANNUAL time map 1999-2019 (CDC heart/stroke mortality trends,
+     * ages 35-64, age-standardized + spatiotemporally smoothed). Cancer is a
+     * SNAPSHOT (NCI State Cancer Profiles, all sites, latest 5-year window) -
+     * no open annual county cancer-mortality series exists.
+     */
+    workflow BuildMortalityMapsUS(
+        heart_topic: String = "All heart disease",
+        heart_age: String = "Ages 35-64 years"
+    ) => (status: String, heart_path: String, cancer_path: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        heart = DownloadHeartDiseaseTS(topic = $.heart_topic, age = $.heart_age)
+        cancer = DownloadCancerMortality()
+        heartmap = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = heart.ts_file,
+            metric = "heart_disease",
+            title = "Heart disease mortality by county (ages 35-64)",
+            region = "us-heart-disease",
+            source_note = "CDC/NVSS heart disease death rates among adults 35-64, ANNUAL 1999-2019; age-standardized and spatiotemporally smoothed (small-county rates borrow strength from neighbors), per 100,000"
+        )
+        cancermap = BuildNationalIndicatorMap(
+            tiger_file = tiger.file,
+            indicators_file = cancer.indicators_file,
+            metric = "cancer_mortality",
+            title = "Cancer mortality by county",
+            region = "us-cancer",
+            source_note = "NCI State Cancer Profiles / NVSS - all cancer sites, age-adjusted death rate per 100,000, latest 5-year window (2019-2023); single snapshot because no open annual county cancer-mortality series exists"
+        )
+        yield BuildMortalityMapsUS(
+            status = "completed",
+            heart_path = heartmap.html_path,
+            cancer_path = cancermap.html_path
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

@@ -424,3 +424,121 @@ def build_chr_measure_series_csv(measure: str) -> dict[str, Any]:
         measure, len(series), len(years), years[0], years[-1], dest,
     )
     return _file_info(dest, _chr_release_url(CHR_LATEST_RELEASE), False)
+
+
+# ---------------------------------------------------------------------------
+# CDC heart-disease mortality trends (annual, 1999-2019) + NCI cancer snapshot.
+# ---------------------------------------------------------------------------
+
+HEART_TRENDS_URL = (
+    "https://data.cdc.gov/resource/7b9s-s8ck.csv"
+    "?$limit=200000&$select=year,locationid,data_value"
+    "&geographiclevel=County&stratification2=Overall&stratification3=Overall"
+)
+CANCER_SCP_URL = (
+    "https://statecancerprofiles.cancer.gov/deathrates/index.php"
+    "?stateFIPS=00&areatype=county&cancer=001&race=00&sex=0&age=001&year=0"
+    "&type=death&sortVariableName=rate&sortOrder=default&output=1"
+)
+
+
+def parse_heart_trends_csv(path: str) -> dict[str, dict[int, float]]:
+    """{fips: {year: rate}} from the filtered Socrata CSV (year, locationid,
+    data_value). Pooled-window rows ("1999 - 2010") and suppressed values
+    ("NA") are skipped."""
+    out: dict[str, dict[int, float]] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in csv.DictReader(f):
+            y = (row.get("year") or "").strip()
+            fips = (row.get("locationid") or "").strip().zfill(5)
+            if not y.isdigit() or len(fips) != 5:
+                continue
+            try:
+                val = float(row.get("data_value", ""))
+            except (TypeError, ValueError):
+                continue
+            out[fips] = out.get(fips, {})
+            out[fips][int(y)] = round(val, 1)
+    return out
+
+
+def build_heart_disease_ts_csv(
+    topic: str = "All heart disease", age: str = "Ages 35-64 years"
+) -> dict[str, Any]:
+    """CDC 'Rates and Trends in Heart Disease and Stroke Mortality' →
+    wide annual time CSV (age-standardized, spatiotemporally smoothed,
+    per 100k, NVSS). One Socrata pull for the Overall/Overall slice."""
+    from urllib.parse import quote
+
+    url = f"{HEART_TRENDS_URL}&topic={quote(topic)}&stratification1={quote(age)}"
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    slug = f"{topic}_{age}".lower().replace(" ", "_").replace("/", "-")[:60]
+    raw = _fetch(url, cstore.join(cache, f"cdc_heart_{slug}.csv"), min_bytes=100000)
+    series = parse_heart_trends_csv(raw)
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError(f"No heart-disease rows for topic={topic!r} age={age!r}")
+    dest = cstore.join(cache, "cdc_heart_disease_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", ""]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info(
+        "CDC heart trends: %d counties x %d years -> %s", len(series), len(years), dest
+    )
+    return _file_info(dest, url, False)
+
+
+def parse_scp_deathrates(path: str) -> dict[str, tuple[float, str]]:
+    """{fips: (age-adjusted rate, county name)} from a State Cancer Profiles
+    death-rate export: a preamble, then a County,FIPS,… header, then data rows,
+    then footnotes. Rates carry footnote whitespace ("412.2 ")."""
+    out: dict[str, tuple[float, str]] = {}
+    with cstore.open_read(path, newline="") as f:
+        reader = csv.reader(f)
+        header = None
+        rate_i = None
+        for row in reader:
+            if header is None:
+                if row and row[0].strip() == "County" and "FIPS" in [c.strip() for c in row[:3]]:
+                    header = [c.strip() for c in row]
+                    rate_i = next(
+                        (i for i, c in enumerate(header) if c.startswith("Age-Adjusted Death Rate")),
+                        None,
+                    )
+                continue
+            if rate_i is None or len(row) <= rate_i:
+                continue
+            fips = (row[1] or "").strip()
+            if len(fips) != 5 or not fips.isdigit() or fips == "00000":
+                continue
+            try:
+                val = float((row[rate_i] or "").strip())
+            except (TypeError, ValueError):
+                continue
+            out[fips] = (round(val, 1), (row[0] or "").strip())
+    return out
+
+
+def build_cancer_mortality_csv() -> dict[str, Any]:
+    """NCI State Cancer Profiles all-counties, all-site cancer death rates
+    (age-adjusted per 100k, latest 5-year window) → normalized indicator CSV."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    raw = _fetch(
+        CANCER_SCP_URL, cstore.join(cache, "scp_cancer_deathrates.csv"),
+        browser=True, min_bytes=100000,
+    )
+    vals = parse_scp_deathrates(raw)
+    dest = cstore.join(cache, "scp_cancer_mortality.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME", "scp_cancer_mortality"])
+        for fips in sorted(vals):
+            v, name = vals[fips]
+            wr.writerow([f"0500000US{fips}", name, v])
+    logger.info("SCP cancer mortality: %d counties -> %s", len(vals), dest)
+    return _file_info(dest, CANCER_SCP_URL, False)

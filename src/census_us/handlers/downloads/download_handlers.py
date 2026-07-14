@@ -12,6 +12,8 @@ from ..shared.census_utils import (
     build_chr_indicators_csv,
     build_chr_jobless_ts_csv,
     build_chr_measure_series_csv,
+    build_cancer_mortality_csv,
+    build_heart_disease_ts_csv,
     build_homeless_ts_csv,
     download_acs,
     download_tiger,
@@ -229,6 +231,42 @@ def handle_download_chr_series(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_heart_disease_ts(params: dict[str, Any]) -> dict[str, Any]:
+    """CDC heart-disease mortality trends (annual county rates 1999-2019,
+    age-standardized + spatiotemporally smoothed, per 100k) -> wide time CSV.
+
+    Params: topic ("All heart disease" default; also CVD/CHD/Heart failure/
+    All stroke), age ("Ages 35-64 years" default, or "Ages 65 years and older").
+    """
+    topic = params.get("topic", "All heart disease") or "All heart disease"
+    age = params.get("age", "Ages 35-64 years") or "Ages 35-64 years"
+    step_log = params.get("_step_log")
+    try:
+        ts_file = build_heart_disease_ts_csv(topic=topic, age=age)
+        if step_log:
+            step_log(f"DownloadHeartDiseaseTS: {topic}/{age} -> {ts_file['size']}B", level="success")
+        return {"ts_file": ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadHeartDiseaseTS: {exc}", level="error")
+        raise
+
+
+def handle_download_cancer_mortality(params: dict[str, Any]) -> dict[str, Any]:
+    """NCI State Cancer Profiles all-site county cancer death rates (latest
+    5-year window) -> normalized indicator CSV (snapshot)."""
+    step_log = params.get("_step_log")
+    try:
+        indicators_file = build_cancer_mortality_csv()
+        if step_log:
+            step_log(f"DownloadCancerMortality: {indicators_file['size']}B", level="success")
+        return {"indicators_file": indicators_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadCancerMortality: {exc}", level="error")
+        raise
+
+
 def handle_download_homeless_ts(params: dict[str, Any]) -> dict[str, Any]:
     """HUD PIT CoC counts + CoC-county crosswalk -> homeless per-10k wide CSV.
 
@@ -260,6 +298,8 @@ _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACSDemographics": handle_download_acs_demographics,
     f"{NAMESPACE}.DownloadCHR": handle_download_chr,
     f"{NAMESPACE}.DownloadCHRSeries": handle_download_chr_series,
+    f"{NAMESPACE}.DownloadHeartDiseaseTS": handle_download_heart_disease_ts,
+    f"{NAMESPACE}.DownloadCancerMortality": handle_download_cancer_mortality,
     f"{NAMESPACE}.DownloadHomelessTS": handle_download_homeless_ts,
 }
 

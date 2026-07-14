@@ -78,6 +78,21 @@ namespace census.Operations {
       * measures — disclosed on the map. */
     event facet DownloadCHRSeries(measure: String) => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 20)
 
+    /** CDC "Rates and Trends in Heart Disease and Stroke Mortality" → wide
+      * ANNUAL county time CSV, 1999-2019 (NVSS; age-standardized,
+      * spatiotemporally smoothed, per 100,000). topic: "All heart disease"
+      * (default) / "Cardiovascular disease (CVD)" / "Coronary heart disease
+      * (CHD)" / "Heart failure" / "All stroke"; age: "Ages 35-64 years"
+      * (default) or "Ages 65 years and older" — the dataset has no combined
+      * 35+ band. */
+    event facet DownloadHeartDiseaseTS(topic: String = "All heart disease", age: String = "Ages 35-64 years") => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
+    /** NCI State Cancer Profiles: all-site, age-adjusted county cancer DEATH
+      * rates (latest 5-year window) → normalized indicator CSV. SNAPSHOT —
+      * no open annual county cancer-mortality series exists (IHME's is
+      * login-gated; CDC WONDER blocks county queries via API). */
+    event facet DownloadCancerMortality() => (indicators_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit

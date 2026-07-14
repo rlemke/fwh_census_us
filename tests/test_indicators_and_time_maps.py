@@ -178,3 +178,36 @@ class TestCHRReleaseSeries:
         assert " yrs'" in html
         # worse=low -> the JS rank inverts the ascending index
         assert "ranksAsc.length-asc+1" in html
+
+
+class TestMortalitySources:
+    def test_parse_heart_trends(self, tmp_path):
+        p = tmp_path / "heart.csv"
+        with open(p, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["year", "locationid", "data_value"])
+            wr.writerow(["1999", "01001", "180.5"])
+            wr.writerow(["2019", "01001", "122.6"])
+            wr.writerow(["1999 - 2010", "01001", "150.0"])  # pooled row skipped
+            wr.writerow(["2019", "01003", "NA"])  # suppressed
+        out = indicators.parse_heart_trends_csv(str(p))
+        assert out == {"01001": {1999: 180.5, 2019: 122.6}}
+
+    def test_parse_scp_deathrates(self, tmp_path):
+        p = tmp_path / "scp.csv"
+        with open(p, "w") as f:
+            f.write(
+                "Death Rate Report for United States by County\n"
+                "\n"
+                '"All Cancer Sites, 2019-2023"\n'
+                "\n"
+                'County,FIPS,RUCC,Met Objective,"Age-Adjusted Death Rate([rate note]) - deaths per 100,000",'
+                '"Lower CI (Rate)","Upper CI (Rate)"\n'
+                '"United States",00000,N/A,No,145.4 ,145.2, 145.6\n'
+                '"Union County, Florida",12125,Rural,No,412.2 ,372.1, 455.7\n'
+                '"Nodata County, Alaska",02999,Rural,No,* ,*, *\n'
+                "  \n"
+                "[rate note] some footnote\n"
+            )
+        out = indicators.parse_scp_deathrates(str(p))
+        assert out == {"12125": (412.2, "Union County, Florida")}

@@ -431,7 +431,7 @@ class TestInitRegistryHandlersWithIngestion:
             os.environ.pop("GITHUB_TOKEN", None)
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_registry_handlers(runner)
-        assert runner.register_handler.call_count == 57
+        assert runner.register_handler.call_count == 59
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
@@ -440,4 +440,4 @@ class TestInitRegistryHandlersWithIngestion:
             os.environ.pop("GITHUB_TOKEN", None)
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_handlers(poller)
-        assert poller.register.call_count == 57
+        assert poller.register.call_count == 59
