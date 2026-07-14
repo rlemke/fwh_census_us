@@ -45,12 +45,17 @@ ABOUT_MODAL_CSS = (
 ABOUT_MODAL_BUTTON = '<button id="infobtn" class="infobtn">&#8505;&#65039; About this data</button>'
 
 # Toggle/dismiss wiring — drop into a renderer's existing <script> block.
+# Binding is deferred to DOMContentLoaded: every census template emits the
+# modal markup AFTER the script block, so an immediate getElementById finds
+# nothing and the visible-on-load modal becomes undismissable.
 ABOUT_MODAL_JS = (
-    "const _im=document.getElementById('infomodal');"
+    "function _wireim(){const _im=document.getElementById('infomodal');"
     "if(_im){const ib=document.getElementById('infobtn'),ic=document.getElementById('infoclose');"
     "if(ib)ib.onclick=()=>{_im.style.display='flex';};"
     "if(ic)ic.onclick=()=>{_im.style.display='none';};"
-    "_im.onclick=e=>{if(e.target===_im)_im.style.display='none';};}"
+    "_im.onclick=e=>{if(e.target===_im)_im.style.display='none';};}}"
+    "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_wireim);"
+    "else _wireim();"
 )
 
 
