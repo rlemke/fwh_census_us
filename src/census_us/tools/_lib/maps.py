@@ -878,7 +878,9 @@ map.on('load',()=>{{
 # First ACS 5-year vintage in which a metric's source table exists (default
 # 2010): B15003 (education) and B23025 (employment) first appear in 2012.
 TS_METRIC_START = {"no_bachelors": 2012, "less_than_hs": 2012, "hs_only": 2012,
-                   "grad_degree": 2012, "unemployment": 2012}
+                   "grad_degree": 2012, "unemployment": 2012,
+                   # B27001 (insurance) first published in the 2012 5-year
+                   "uninsured": 2012}
 
 
 def acs_timeseries_values(
