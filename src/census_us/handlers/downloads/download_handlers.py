@@ -11,6 +11,7 @@ from ..shared.census_utils import (
     ACS_TABLES,
     build_chr_indicators_csv,
     build_chr_jobless_ts_csv,
+    build_chr_measure_series_csv,
     build_homeless_ts_csv,
     download_acs,
     download_tiger,
@@ -206,6 +207,28 @@ def handle_download_chr(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_chr_series(params: dict[str, Any]) -> dict[str, Any]:
+    """One CHR measure across every annual release -> wide time CSV.
+
+    Params: measure — "obesity" (v011, releases 2010-2025, frames ~2007-2022)
+    or "life_expectancy" (v147, releases 2019-2025, frames ~2016-2022).
+    Frame labels are the approximate DATA year (release - 3).
+    """
+    measure = params.get("measure", "") or ""
+    step_log = params.get("_step_log")
+    if not measure:
+        raise ValueError("DownloadCHRSeries requires measure")
+    try:
+        ts_file = build_chr_measure_series_csv(measure)
+        if step_log:
+            step_log(f"DownloadCHRSeries: {measure} -> {ts_file['size']}B", level="success")
+        return {"ts_file": ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadCHRSeries: {exc}", level="error")
+        raise
+
+
 def handle_download_homeless_ts(params: dict[str, Any]) -> dict[str, Any]:
     """HUD PIT CoC counts + CoC-county crosswalk -> homeless per-10k wide CSV.
 
@@ -236,6 +259,7 @@ _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadACSSocial": handle_download_acs_social,
     f"{NAMESPACE}.DownloadACSDemographics": handle_download_acs_demographics,
     f"{NAMESPACE}.DownloadCHR": handle_download_chr,
+    f"{NAMESPACE}.DownloadCHRSeries": handle_download_chr_series,
     f"{NAMESPACE}.DownloadHomelessTS": handle_download_homeless_ts,
 }
 

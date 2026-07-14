@@ -105,11 +105,14 @@ def _file_info(path: str, url: str, was_cached: bool) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def parse_chr_measure(path: str, measure_col: str) -> dict[str, tuple[float, str]]:
-    """{5-digit fips: (rawvalue, "County, ST")} from a CHR analytic CSV.
+def parse_chr_measure(
+    path: str, measure_col: str, *, scale: float = 1.0, round_nd: int = 1
+) -> dict[str, tuple[float, str]]:
+    """{5-digit fips: (rawvalue*scale, "County, ST")} from a CHR analytic CSV.
 
     Row 1 is human-readable headers, row 2 machine names — DictReader keys on
     row 1's cells only if we skip it, so read via the machine-name row.
+    ``scale`` converts fraction measures (obesity 0.384) to percent.
     """
     out: dict[str, tuple[float, str]] = {}
     with cstore.open_read(path, newline="") as f:
@@ -133,7 +136,7 @@ def parse_chr_measure(path: str, measure_col: str) -> dict[str, tuple[float, str
             except (TypeError, ValueError):
                 continue
             name = f"{row[idx['county']]}, {row[idx['state']]}"
-            out[fips] = (round(val, 1), name)
+            out[fips] = (round(val * scale, round_nd), name)
     return out
 
 
@@ -348,3 +351,73 @@ def build_homeless_ts_csv(acs_path: str) -> dict[str, Any]:
         sum(len(v) for v in pit.values()), len(rates), len(years), dest,
     )
     return _file_info(dest, PIT_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# CHR RELEASE SERIES — one measure across every annual release (2010-2025).
+# ---------------------------------------------------------------------------
+
+# Older releases live at a different path; 2025 is the _v2 revision.
+def _chr_release_url(release: int) -> str:
+    if release <= 2018:
+        return ("https://www.countyhealthrankings.org/sites/default/files/"
+                f"analytic_data{release}.csv")
+    if release == 2025:
+        return f"{CHR_BASE}/analytic_data2025_v2.csv"
+    return f"{CHR_BASE}/analytic_data{release}.csv"
+
+
+# measure key -> (CHR machine column, value scale, data-year offset from the
+# release year, first release carrying it, output column). The offset labels
+# each release's frame by its approximate DATA year: obesity (v011) is a
+# BRFSS-modeled single year ~3 years before release; life expectancy (v147)
+# is a 3-year NVSS window roughly centered 3 years before release (windows
+# overlap — disclosed in the map's About text).
+CHR_SERIES = {
+    "obesity": ("v011_rawvalue", 100.0, -3, 2010, "chr_obesity"),
+    "life_expectancy": ("v147_rawvalue", 1.0, -3, 2019, "chr_life_expectancy"),
+}
+
+CHR_LATEST_RELEASE = 2025
+
+
+def build_chr_measure_series_csv(measure: str) -> dict[str, Any]:
+    """Fetch every CHR release carrying ``measure`` and write a wide time CSV
+    (GEOID, NAME, y<data_year>…). Releases missing the column are skipped."""
+    if measure not in CHR_SERIES:
+        raise ValueError(f"Unknown CHR series measure: {measure}. Known: {sorted(CHR_SERIES)}")
+    col, scale, offset, first_release, _out_col = CHR_SERIES[measure]
+    cache = cstore.join(cstore.cache_root(), "indicators")
+
+    series: dict[str, dict[int, float]] = {}
+    names: dict[str, str] = {}
+    for release in range(first_release, CHR_LATEST_RELEASE + 1):
+        dest = cstore.join(cache, f"chr_release_{release}.csv")
+        raw = _fetch(_chr_release_url(release), dest, min_bytes=1000000)
+        try:
+            vals = parse_chr_measure(raw, col, scale=scale)
+        except ValueError:
+            logger.info("CHR %d lacks %s — skipped", release, col)
+            continue
+        year = release + offset
+        for fips, (v, name) in vals.items():
+            series.setdefault(fips, {})[year] = v
+            names.setdefault(fips, name)
+
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError(f"No CHR release carried {col}")
+    dest = cstore.join(cache, f"chr_{measure}_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", names.get(fips, "")]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info(
+        "CHR %s series: %d counties x %d frames (%d-%d) -> %s",
+        measure, len(series), len(years), years[0], years[-1], dest,
+    )
+    return _file_info(dest, _chr_release_url(CHR_LATEST_RELEASE), False)

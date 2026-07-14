@@ -37,6 +37,7 @@ from census_us.tools._lib import (  # noqa: F401
 from census_us.tools._lib.indicators import (  # noqa: F401
     build_chr_indicators_csv,
     build_chr_jobless_ts_csv,
+    build_chr_measure_series_csv,
     build_homeless_ts_csv,
 )
 from census_us.tools._lib.maps import (  # noqa: F401
@@ -94,6 +95,7 @@ __all__ = [
     "acs_timeseries_values",
     "build_chr_indicators_csv",
     "build_chr_jobless_ts_csv",
+    "build_chr_measure_series_csv",
     "build_homeless_ts_csv",
     "build_national_county_map",
     "build_national_county_time_map",

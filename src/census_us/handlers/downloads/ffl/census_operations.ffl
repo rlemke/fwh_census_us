@@ -70,6 +70,14 @@ namespace census.Operations {
       * unemployment 2002-2022, wide y#### columns). Cache-first. */
     event facet DownloadCHR() => (indicators_file: CensusFile, jobless_ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 15)
 
+    /** One County Health Rankings measure across EVERY annual release → wide
+      * time CSV. measure = "obesity" (v011, BRFSS-modeled, releases 2010-2025,
+      * frames ~2007-2022) or "life_expectancy" (v147, 3-year NVSS windows,
+      * releases 2019-2025, frames ~2016-2022). Frame labels are the
+      * approximate DATA year (release - 3); windows overlap for pooled
+      * measures — disclosed on the map. */
+    event facet DownloadCHRSeries(measure: String) => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 20)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit

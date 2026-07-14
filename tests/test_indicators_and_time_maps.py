@@ -145,3 +145,36 @@ class TestTimeMap:
         tiger = _county_zip(tmp_path / "t2.zip", [("01", "001", "A", -86.6, 32.5)])
         with pytest.raises(ValueError, match="No yearly values"):
             build_national_county_time_map(tiger, "median_income", {}, title="x", region="r")
+
+
+class TestCHRReleaseSeries:
+    def test_parse_scale(self, tmp_path):
+        p = tmp_path / "chr.csv"
+        with open(p, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["h1", "h2", "h3", "h4", "h5", "h6"])
+            wr.writerow(["statecode", "countycode", "fipscode", "state", "county", "v011_rawvalue"])
+            wr.writerow(["01", "001", "01001", "AL", "Autauga County", "0.384"])
+        out = indicators.parse_chr_measure(str(p), "v011_rawvalue", scale=100.0)
+        assert out["01001"][0] == 38.4
+
+    def test_release_url_eras(self):
+        assert "sites/default/files/analytic_data2015.csv" in indicators._chr_release_url(2015)
+        assert "media/document/analytic_data2023.csv" in indicators._chr_release_url(2023)
+        assert "analytic_data2025_v2.csv" in indicators._chr_release_url(2025)
+
+    def test_worse_low_time_map_ranks(self, out_env, tmp_path):
+        """life_expectancy (worse=low): dark = short lives, rank 1 = longest."""
+        tiger = _county_zip(
+            tmp_path / "le.zip",
+            [("01", "001", "Autauga", -86.6, 32.5), ("06", "001", "Alameda", -122.3, 37.7)],
+        )
+        values = {2017: {"01001": 74.8, "06001": 82.1}, 2022: {"01001": 73.9, "06001": 81.5}}
+        res = build_national_county_time_map(
+            tiger, "life_expectancy", values, title="LE", region="t-le"
+        )
+        with open(res.html_path) as f:
+            html = f.read()
+        assert " yrs'" in html
+        # worse=low -> the JS rank inverts the ascending index
+        assert "ranksAsc.length-asc+1" in html

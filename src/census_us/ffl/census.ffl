@@ -483,6 +483,41 @@ namespace census.workflows {
     }
 
     /**
+     * Life-expectancy + adult-obesity national county TIME maps from the
+     * County Health Rankings release series: each annual CHR release carries
+     * one modeled data-year, so the releases assemble into a time series
+     * (obesity ~2007-2022 from 16 releases; life expectancy ~2016-2022 from
+     * 7 releases of 3-year death-record windows). Frame labels are the
+     * approximate data year (release - 3) - disclosed on each map.
+     */
+    workflow BuildHealthTimeMapsUS() => (status: String, obesity_path: String, life_path: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        ob = DownloadCHRSeries(measure = "obesity")
+        le = DownloadCHRSeries(measure = "life_expectancy")
+        obmap = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = ob.ts_file,
+            metric = "obesity",
+            title = "Adult obesity by county",
+            region = "us-obesity",
+            source_note = "BRFSS-modeled adult obesity via County Health Rankings releases 2010-2025; each frame is one release's modeled data year (labeled release minus 3). CDC revised the modeling method around 2016, so compare adjacent years with care"
+        )
+        lemap = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = le.ts_file,
+            metric = "life_expectancy",
+            title = "Life expectancy by county",
+            region = "us-life-expectancy",
+            source_note = "NVSS death records via County Health Rankings releases 2019-2025; each frame is a 3-year window roughly centered on the label (windows overlap between frames)"
+        )
+        yield BuildHealthTimeMapsUS(
+            status = "completed",
+            obesity_path = obmap.html_path,
+            life_path = lemap.html_path
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).
