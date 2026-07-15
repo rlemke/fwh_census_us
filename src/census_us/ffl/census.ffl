@@ -650,6 +650,29 @@ namespace census.workflows {
     }
 
     /**
+     * Presidential-margin national county TIME map: R-D margin of the total
+     * vote for the 2008-2024 elections on a FIXED diverging red-blue scale
+     * (blue = Democratic, red = Republican; symmetric around zero).
+     */
+    workflow BuildElectionTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        elec = DownloadElectionTS()
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = elec.ts_file,
+            metric = "party_margin",
+            title = "Presidential vote margin by county",
+            region = "us-party",
+            source_note = "Certified county presidential returns (tonmcg compilation, MEDSL-derived), elections 2008-2024; shading is the Republican-minus-Democratic margin as a percent of the total vote on a fixed diverging scale - red Republican, blue Democratic. Alaska reports by state house district, not county, so it shows no estimate"
+        )
+        yield BuildElectionTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with 2024 returns"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

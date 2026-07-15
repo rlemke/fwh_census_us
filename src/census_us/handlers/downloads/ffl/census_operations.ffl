@@ -115,6 +115,12 @@ namespace census.Operations {
       * Data provided by Zillow (open research CSV, attribution required). */
     event facet DownloadHomeValueTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
+    /** County presidential-election margins (Republican minus Democratic,
+      * percent of the TOTAL vote) for the 2008-2024 elections → wide time
+      * CSV. Certified county returns via the community-standard tonmcg
+      * compilation (MEDSL-derived). */
+    event facet DownloadElectionTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit

@@ -296,3 +296,37 @@ class TestMortalitySources:
         assert p["y2010"] == 500.0 and p["y2023"] == 600.0
         with open(res.html_path) as f:
             assert "/sq mi" in f.read()
+
+    def test_parse_election_files(self, tmp_path):
+        p1 = tmp_path / "e0816.csv"
+        with open(p1, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["fips_code", "county", "total_2008", "dem_2008", "gop_2008", "oth_2008",
+                         "total_2012", "dem_2012", "gop_2012", "oth_2012",
+                         "total_2016", "dem_2016", "gop_2016", "oth_2016"])
+            wr.writerow(["1001", "Autauga", "100", "40", "58", "2",
+                         "100", "38", "60", "2", "100", "24", "73", "3"])
+        out = indicators.parse_election_0816(str(p1))
+        assert out["01001"] == {2008: 18.0, 2012: 22.0, 2016: 49.0}
+        p2 = tmp_path / "e2024.csv"
+        with open(p2, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["state_name", "county_fips", "county_name", "votes_gop",
+                         "votes_dem", "total_votes"])
+            wr.writerow(["Alabama", "01001", "Autauga County", "20484", "7439", "28190"])
+            wr.writerow(["X", "bad", "Y", "1", "1", "2"])
+        out2 = indicators.parse_election_year(str(p2), 2024)
+        assert out2 == {"01001": 46.3}
+
+    def test_diverging_stops_override(self, out_env, tmp_path):
+        from census_us.tools._lib.maps import ELECTION_STOPS
+        tiger = _county_zip(tmp_path / "ev.zip", [("01", "001", "A", -86.6, 32.5)])
+        values = {2008: {"01001": 18.0}, 2024: {"01001": 46.3}}
+        res = build_national_county_time_map(
+            tiger, "party_margin", values, title="Margin", region="t-party",
+            stops_override=ELECTION_STOPS,
+        )
+        with open(res.html_path) as f:
+            html = f.read()
+        assert '"#0b3d91"' in html.replace("'", '"') or "#0b3d91" in html  # blue end baked in
+        assert "R +" in html and "D +" in html

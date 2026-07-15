@@ -782,3 +782,95 @@ def build_home_value_ts_csv() -> dict[str, Any]:
             )
     logger.info("ZHVI: %d counties x %d years -> %s", len(series), len(years), dest)
     return _file_info(dest, ZHVI_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# Presidential election margins by county, 2008-2024 (tonmcg/MEDSL-derived).
+# ---------------------------------------------------------------------------
+
+ELEC_BASE = (
+    "https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master"
+)
+ELEC_0816_URL = f"{ELEC_BASE}/US_County_Level_Presidential_Results_08-16.csv"
+ELEC_YEAR_URLS = {
+    2020: f"{ELEC_BASE}/2020_US_County_Level_Presidential_Results.csv",
+    2024: f"{ELEC_BASE}/2024_US_County_Level_Presidential_Results.csv",
+}
+
+
+def _margin(gop: float, dem: float, total: float) -> float | None:
+    """Republican-minus-Democratic margin as % of the TOTAL vote."""
+    if total <= 0:
+        return None
+    return round((gop - dem) / total * 100.0, 1)
+
+
+def parse_election_0816(path: str) -> dict[str, dict[int, float]]:
+    """{fips: {2008/2012/2016: margin}} from the wide combined CSV."""
+    out: dict[str, dict[int, float]] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in csv.DictReader(f):
+            fips = (row.get("fips_code") or "").strip().zfill(5)
+            if len(fips) != 5 or not fips.isdigit():
+                continue
+            for year in (2008, 2012, 2016):
+                try:
+                    m = _margin(
+                        float(row[f"gop_{year}"]), float(row[f"dem_{year}"]),
+                        float(row[f"total_{year}"]),
+                    )
+                except (TypeError, ValueError, KeyError):
+                    continue
+                if m is not None:
+                    out.setdefault(fips, {})[year] = m
+    return out
+
+
+def parse_election_year(path: str, year: int) -> dict[str, float]:
+    """{fips: margin} from a per-election CSV (county_fips/votes_gop/votes_dem)."""
+    out: dict[str, float] = {}
+    with cstore.open_read(path, newline="") as f:
+        for row in csv.DictReader(f):
+            fips = (row.get("county_fips") or "").strip().zfill(5)
+            if len(fips) != 5 or not fips.isdigit():
+                continue
+            try:
+                m = _margin(
+                    float(row["votes_gop"]), float(row["votes_dem"]),
+                    float(row["total_votes"]),
+                )
+            except (TypeError, ValueError, KeyError):
+                continue
+            if m is not None:
+                out[fips] = m
+    return out
+
+
+def build_election_ts_csv() -> dict[str, Any]:
+    """County presidential margins (R−D, % of total vote) for the 2008-2024
+    elections → wide time CSV. Sources: tonmcg county-results repo (the
+    community-standard compilation of certified county returns)."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    series = parse_election_0816(
+        _fetch(ELEC_0816_URL, cstore.join(cache, "elec_08_16.csv"), min_bytes=100000)
+    )
+    for year, url in ELEC_YEAR_URLS.items():
+        vals = parse_election_year(
+            _fetch(url, cstore.join(cache, f"elec_{year}.csv"), min_bytes=100000), year
+        )
+        for fips, m in vals.items():
+            series.setdefault(fips, {})[year] = m
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError("No election rows parsed")
+    dest = cstore.join(cache, "election_margin_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", ""]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info("Elections: %d counties x %d elections -> %s", len(series), len(years), dest)
+    return _file_info(dest, ELEC_BASE, False)

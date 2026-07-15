@@ -875,6 +875,16 @@ map.on('load',()=>{{
 # ---------------------------------------------------------------------------
 
 
+# Fixed diverging stops for presidential-margin maps (percentage points,
+# R minus D of the total vote): blue = Democratic, red = Republican. A
+# diverging scale must stay symmetric around 0, so these are FIXED values,
+# not pooled quantiles.
+ELECTION_STOPS: list[tuple[float, str]] = [
+    (-80.0, "#0b3d91"), (-40.0, "#2166ac"), (-10.0, "#92c5de"),
+    (0.0, "#f7f7f7"),
+    (10.0, "#f4a582"), (40.0, "#ca0020"), (80.0, "#67001f"),
+]
+
 # First ACS 5-year vintage in which a metric's source table exists (default
 # 2010): B15003 (education) and B23025 (employment) first appear in 2012.
 TS_METRIC_START = {"no_bachelors": 2012, "less_than_hs": 2012, "hs_only": 2012,
@@ -942,6 +952,7 @@ def build_national_county_time_map(
     source_note: str = "",
     unit: str = "county",
     per_sqmi: bool = False,
+    stops_override: list[tuple[float, str]] | None = None,
     params: dict | None = None,
 ) -> NationalCountyResult:
     """One national county choropleth with a YEAR SLIDER (+ play) over
@@ -999,12 +1010,14 @@ def build_national_county_time_map(
             valued_latest += 1
 
     # Pooled quantile stops across every year → stable cross-year shading.
+    # A stops_override (fixed values, e.g. a diverging political scale that
+    # must stay symmetric around 0) bypasses the quantile logic entirely.
     pooled = sorted(
         v for y in years for v in values_by_year[y].values() if v is not None
     )
     ramp = list(reversed([c for _v, c in _RAMP])) if m.worse == "low" else [c for _v, c in _RAMP]
-    stops: list[tuple[float, str]] = []
-    if pooled:
+    stops: list[tuple[float, str]] = list(stops_override) if stops_override else []
+    if pooled and not stops_override:
         last = None
         for (frac, _c), color in zip(_RAMP, ramp):
             v = float(pooled[min(int(frac * (len(pooled) - 1)), len(pooled) - 1)])
@@ -1120,6 +1133,8 @@ const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
   if('{m.fmt}'==='per100k') return (Math.round(v*10)/10)+' /100k';
   if('{m.fmt}'==='per10k') return (Math.round(v*10)/10)+' /10k';
   if('{m.fmt}'==='density') return (v<10?Math.round(v*10)/10:Math.round(v).toLocaleString())+' /sq mi';
+  if('{m.fmt}'==='margin'){{const a=Math.round(Math.abs(v)*10)/10;
+    return v>0.05?('R +'+a):v<-0.05?('D +'+a):'even';}}
   return (Math.round(v*10)/10)+'%'; }};
 const sc=document.getElementById('lgscale');
 STOPS.forEach(([v,c])=>{{const d=document.createElement('div');

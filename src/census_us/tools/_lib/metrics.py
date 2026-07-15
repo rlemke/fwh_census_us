@@ -121,6 +121,8 @@ METRICS: list[Metric] = [
            raw="zhvi_home_value", scale=1.0, national_only=True),
     Metric("population_density", "Population per square mile", "density", "high", False,
            raw="B01003_001E", scale=1.0, national_only=True),
+    Metric("party_margin", "Presidential margin (R minus D)", "margin", "high", False,
+           raw="elec_margin", scale=1.0, national_only=True),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,
