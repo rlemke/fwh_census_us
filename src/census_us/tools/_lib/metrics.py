@@ -119,6 +119,8 @@ METRICS: list[Metric] = [
            raw="pew_unauthorized", scale=1.0, national_only=True),
     Metric("home_value", "Typical home value (ZHVI)", "dollar", "high", False,
            raw="zhvi_home_value", scale=1.0, national_only=True),
+    Metric("population_density", "Population per square mile", "density", "high", False,
+           raw="B01003_001E", scale=1.0, national_only=True),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,

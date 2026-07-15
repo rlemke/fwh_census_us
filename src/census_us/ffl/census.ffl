@@ -382,7 +382,8 @@ namespace census.workflows {
             #{"metric": "median_age", "title": "Median age by county", "region": "us-median-age"},
             #{"metric": "median_rent", "title": "Median gross rent by county", "region": "us-rent"},
             #{"metric": "gini", "title": "Income inequality (Gini) by county", "region": "us-gini"},
-            #{"metric": "uninsured", "title": "No health insurance by county", "region": "us-uninsured"}
+            #{"metric": "uninsured", "title": "No health insurance by county", "region": "us-uninsured"},
+            #{"metric": "population_density", "title": "Population density by county", "region": "us-density"}
         ]
     ) => (status: String, html_path: String, metric: String, detail: String) andThen foreach mp in $.maps {
         tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")

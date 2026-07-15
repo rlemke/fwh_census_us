@@ -268,3 +268,31 @@ class TestMortalitySources:
         out = indicators.parse_zhvi_csv(str(p))
         assert out["06075"] == {2000: 446920, 2025: 1289229}
         assert "06000" not in out and "48999" not in out
+
+    def test_density_per_sqmi(self, out_env, tmp_path):
+        """per_sqmi divides yearly values by TIGER ALAND before stops."""
+        import shapefile as shp, zipfile as zf_mod
+        base = tmp_path / "dc"
+        w = shp.Writer(str(base))
+        w.field("STATEFP", "C", size=2); w.field("COUNTYFP", "C", size=3)
+        w.field("GEOID", "C", size=5); w.field("NAME", "C", size=60)
+        w.field("NAMELSAD", "C", size=60); w.field("ALAND", "N", 18, 0)
+        # 100 sq mi county
+        w.record("01", "001", "01001", "Autauga", "Autauga County", int(100 * 2589988.110336))
+        w.poly([[(-86.6, 32.5), (-85.6, 32.5), (-85.6, 33.5), (-86.6, 33.5), (-86.6, 32.5)]])
+        w.close()
+        zp = tmp_path / "dc.zip"
+        with zf_mod.ZipFile(zp, "w") as z:
+            for ext in ("shp", "shx", "dbf"):
+                z.write(f"{base}.{ext}", f"dc.{ext}")
+        values = {2010: {"01001": 50000.0}, 2023: {"01001": 60000.0}}
+        res = build_national_county_time_map(
+            str(zp), "population_density", values, title="Density", region="t-dens",
+            per_sqmi=True,
+        )
+        with open(res.output_path) as f:
+            fc = json.load(f)
+        p = fc["features"][0]["properties"]
+        assert p["y2010"] == 500.0 and p["y2023"] == 600.0
+        with open(res.html_path) as f:
+            assert "/sq mi" in f.read()

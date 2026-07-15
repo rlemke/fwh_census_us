@@ -941,6 +941,7 @@ def build_national_county_time_map(
     region: str,
     source_note: str = "",
     unit: str = "county",
+    per_sqmi: bool = False,
     params: dict | None = None,
 ) -> NationalCountyResult:
     """One national county choropleth with a YEAR SLIDER (+ play) over
@@ -959,6 +960,24 @@ def build_national_county_time_map(
     # 2-digit GEOID is a STATE feature (tl_us_state.zip) — its NAMELSAD is
     # already the full display name.
     features = _national_county_features(tiger_path)
+    if per_sqmi:
+        # Density: divide each year's value by the feature's TIGER land area
+        # (ALAND, m²) BEFORE the pooled stops are computed below.
+        _SQM_PER_SQMI = 2589988.110336
+        aland: dict[str, float] = {}
+        for feat in features:
+            p = feat.get("properties") or {}
+            fp = p.get("GEOID") or f"{p.get('STATEFP', '')}{p.get('COUNTYFP', '')}"
+            try:
+                aland[fp] = float(p.get("ALAND") or 0)
+            except (TypeError, ValueError):
+                aland[fp] = 0.0
+        for y in years:
+            for fp, v in list(values_by_year[y].items()):
+                a = aland.get(fp, 0.0)
+                values_by_year[y][fp] = (
+                    round(v / (a / _SQM_PER_SQMI), 1) if (v is not None and a > 0) else None
+                )
     valued_latest = 0
     latest = years[-1]
     for feat in features:
@@ -1100,6 +1119,7 @@ const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
   if('{m.fmt}'==='years') return (Math.round(v*10)/10)+' yrs';
   if('{m.fmt}'==='per100k') return (Math.round(v*10)/10)+' /100k';
   if('{m.fmt}'==='per10k') return (Math.round(v*10)/10)+' /10k';
+  if('{m.fmt}'==='density') return (v<10?Math.round(v*10)/10:Math.round(v).toLocaleString())+' /sq mi';
   return (Math.round(v*10)/10)+'%'; }};
 const sc=document.getElementById('lgscale');
 STOPS.forEach(([v,c])=>{{const d=document.createElement('div');
