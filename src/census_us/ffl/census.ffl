@@ -602,6 +602,31 @@ namespace census.workflows {
     }
 
     /**
+     * Unauthorized-immigrant population STATE time map: Pew Research
+     * residual-method estimates, ~24 vintages 1990-2023 - the longest series
+     * in the gallery. Shades COUNTS (Pew's own presentation); estimates are
+     * rounded and carry published margins of error.
+     */
+    workflow BuildUnauthorizedTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "STATE")
+        pew = DownloadUnauthorizedTS()
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = pew.ts_file,
+            metric = "unauthorized_population",
+            title = "Unauthorized immigrant population by state",
+            region = "us-unauthorized",
+            unit = "state",
+            source_note = "Pew Research Center residual-method estimates (total foreign-born from Census surveys minus the legally present population), vintages 1990-2023; no direct count of unauthorized residents exists. Estimates are rounded (nearest 5,000) and carry published margins of error; there is no 2020 estimate (pandemic survey disruption)"
+        )
+        yield BuildUnauthorizedTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " states with 2023 data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

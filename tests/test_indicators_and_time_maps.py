@@ -234,3 +234,23 @@ class TestMortalitySources:
             wr.writerow(["2019", "54047", "20.1"])
         out = indicators.parse_suicide_csv(str(p))
         assert out == {"06075": {2023: 10.3}, "54047": {2019: 20.1}}
+
+    def test_parse_pew_state_trends(self, tmp_path):
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["Unauthorized immigrants", "", "", "", "", "", ""])
+        ws.append([])
+        ws.append(["", "", "Estimated", "", "", "", ""])
+        ws.append(["", "State", "'23", "'21", "'90", None, "'23"])  # MOE block after spacer
+        ws.append([])
+        ws.append(["", "U.S. total", 14000000, 10500000, 3500000, None, 100000])
+        ws.append(["", "California", 2250000, 1850000, 1500000, None, 90000])
+        ws.append(["", "Wyoming", 5000, 5000, "<5,000", None, 2000])
+        p = tmp_path / "pew.xlsx"
+        wb.save(p)
+        out = indicators.parse_pew_state_trends(str(p))
+        assert out["06"] == {2023: 2250000.0, 2021: 1850000.0, 1990: 1500000.0}
+        # non-numeric "<5,000" cells skip; MOE column never parsed
+        assert out["56"] == {2023: 5000.0, 2021: 5000.0}
+        assert "US" not in out and len([k for k in out if k == "06"]) == 1

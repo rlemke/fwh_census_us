@@ -919,7 +919,7 @@ def wide_csv_values(path: str) -> dict[int, dict[str, float | None]]:
         year_cols = [c for c in (reader.fieldnames or []) if c.startswith("y") and c[1:].isdigit()]
         for row in reader:
             fips = (row.get("GEOID", "") or "").rsplit("US", 1)[-1]
-            if len(fips) != 5:
+            if len(fips) not in (2, 5):  # state or county
                 continue
             for c in year_cols:
                 y = int(c[1:])
@@ -940,6 +940,7 @@ def build_national_county_time_map(
     title: str,
     region: str,
     source_note: str = "",
+    unit: str = "county",
     params: dict | None = None,
 ) -> NationalCountyResult:
     """One national county choropleth with a YEAR SLIDER (+ play) over
@@ -954,15 +955,17 @@ def build_national_county_time_map(
     if not years:
         raise ValueError(f"No yearly values supplied for {metric_key}")
 
-    # County display names: ACS pulls carry none here, so build from TIGER.
+    # Display names: ACS pulls carry none here, so build from TIGER. A
+    # 2-digit GEOID is a STATE feature (tl_us_state.zip) — its NAMELSAD is
+    # already the full display name.
     features = _national_county_features(tiger_path)
     valued_latest = 0
     latest = years[-1]
     for feat in features:
         props = feat.get("properties") or {}
         fips = props.get("GEOID") or f"{props.get('STATEFP', '')}{props.get('COUNTYFP', '')}"
-        state = _FIPS_NAME.get((fips or "")[:2], "")
         name = props.get("NAMELSAD") or props.get("NAME") or "County"
+        state = "" if len(fips or "") == 2 else _FIPS_NAME.get((fips or "")[:2], "")
         b = _feat_bbox(feat)
         new_props: dict[str, Any] = {
             "GEOID": fips,
@@ -1000,6 +1003,7 @@ def build_national_county_time_map(
     html = _render_national_time_html(
         fc, m, stops, years, title=title, valued_latest=valued_latest,
         county_count=len(features), source_note=source_note, params=params,
+        unit=unit,
     )
     html_path = cstore.join(out_dir, "index.html")
     with cstore.open_write(html_path, "w") as f:
@@ -1018,6 +1022,7 @@ def _render_national_time_html(
     county_count: int,
     source_note: str = "",
     params: dict | None = None,
+    unit: str = "county",
 ) -> str:
     data_js = json.dumps(fc, separators=(",", ":"))
     stops_js = json.dumps(stops)
@@ -1027,11 +1032,11 @@ def _render_national_time_html(
     )
     src = source_note or f"US Census ACS 5-year estimates, {years[0]}–{years[-1]} vintages."
     _desc = (
-        f"Every US county shaded by <b>{m.label.lower()}</b> — drag the year "
+        f"Every US {unit} shaded by <b>{m.label.lower()}</b> — drag the year "
         f"slider or press &#9654; to animate {years[0]}–{years[-1]}. Colors use one "
         f"pooled quantile scale across all years, so shades are comparable over time. "
-        f"Click a county for its value and that year's national rank. Grey = no "
-        f"estimate. {valued_latest:,} of {county_count:,} counties have {years[-1]} data."
+        f"Click a {unit} for its value and that year's national rank. Grey = no "
+        f"estimate. {valued_latest:,} of {county_count:,} {unit}s have {years[-1]} data."
     )
     _about = f"<p><b>{title}</b></p><p>{_desc}</p><p>Source: {src}</p>"
     return f"""<!doctype html>
@@ -1070,7 +1075,7 @@ def _render_national_time_html(
 </style></head>
 <body>
 <div id="map"></div>
-{mapsearch.search_html("Find a county by name…")}
+{mapsearch.search_html(f"Find a {unit} by name…")}
 <div id="ctl" class="panel">
   <h3>{title}</h3>
   <div style="color:#555">{_desc}</div>

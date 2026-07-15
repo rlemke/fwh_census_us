@@ -641,3 +641,87 @@ def build_suicide_ts_csv() -> dict[str, Any]:
             )
     logger.info("CDC suicide: %d counties x %d years -> %s", len(series), len(years), dest)
     return _file_info(dest, SUICIDE_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# Pew Research — unauthorized immigrant population by STATE, 1990-2023.
+# ---------------------------------------------------------------------------
+
+PEW_STATES_URL = (
+    "https://www.pewresearch.org/wp-content/uploads/sites/20/2025/08/"
+    "RE_2025.08.21_Unauthorized-immigrants_detailed-tables_state-trends.xlsx"
+)
+
+
+def parse_pew_state_trends(path: str) -> dict[str, dict[int, float]]:
+    """{2-digit state fips: {year: estimate}} from Pew's state-trends XLSX.
+
+    Header row 4 carries year columns ("'23", "'90") for the estimates block,
+    then a spacer and the margin-of-error block (ignored — we stop at the
+    first empty header after the estimates begin). Rows are state names;
+    "U.S. total" is skipped. Years '90-'99 → 19xx, else 20xx (no 2020 —
+    pandemic survey disruption).
+    """
+    import openpyxl
+
+    from census_us.tools._lib.maps import STATE_FIPS
+
+    local = cstore.localize(path)
+    wb = openpyxl.load_workbook(local, read_only=True)
+    ws = wb[wb.sheetnames[0]]
+    rows = list(ws.iter_rows(values_only=True))
+    header = rows[3]
+    year_cols: list[tuple[int, int]] = []  # (col index, year)
+    started = False
+    for i, h in enumerate(header):
+        hs = str(h or "").strip()
+        if hs.startswith("'") and hs[1:].isdigit():
+            yy = int(hs[1:])
+            year_cols.append((i, 1900 + yy if yy >= 90 else 2000 + yy))
+            started = True
+        elif started:
+            break  # spacer before the margin-of-error block
+
+    out: dict[str, dict[int, float]] = {}
+    for row in rows[4:]:
+        name = str(row[1] or "").strip() if len(row) > 1 else ""
+        fips = STATE_FIPS.get(name)
+        if not fips:
+            continue
+        for i, year in year_cols:
+            try:
+                val = float(row[i])
+            except (TypeError, ValueError, IndexError):
+                continue
+            out.setdefault(fips, {})[year] = val
+    return out
+
+
+def build_unauthorized_ts_csv() -> dict[str, Any]:
+    """Pew unauthorized-population state series (1990-2023, ~24 vintages) →
+    wide STATE-level time CSV (GEOID 0400000US<st>)."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    raw = _fetch(
+        PEW_STATES_URL, cstore.join(cache, "pew_state_trends.xlsx"),
+        browser=True, min_bytes=10000,
+    )
+    series = parse_pew_state_trends(raw)
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError("No Pew state rows parsed")
+    from census_us.tools._lib.maps import _FIPS_NAME
+
+    dest = cstore.join(cache, "pew_unauthorized_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0400000US{fips}", _FIPS_NAME.get(fips, "")]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info(
+        "Pew unauthorized: %d states x %d vintages (%d-%d) -> %s",
+        len(series), len(years), years[0], years[-1], dest,
+    )
+    return _file_info(dest, PEW_STATES_URL, False)

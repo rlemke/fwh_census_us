@@ -103,6 +103,12 @@ namespace census.Operations {
       * CDC but published) → wide time CSV. One data.cdc.gov pull. */
     event facet DownloadSuicideTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
+    /** Pew Research unauthorized-immigrant population by STATE — residual-
+      * method estimates, ~24 vintages 1990-2023 (irregular years; no 2020 —
+      * pandemic survey disruption; counts rounded to the nearest 5,000) →
+      * wide STATE-level time CSV. */
+    event facet DownloadUnauthorizedTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit
