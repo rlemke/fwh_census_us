@@ -627,6 +627,28 @@ namespace census.workflows {
     }
 
     /**
+     * Home-price national county TIME map: Zillow ZHVI typical home value,
+     * one June frame per year 2000-present (~26 frames).
+     */
+    workflow BuildHomeValueTimeMapUS() => (status: String, html_path: String, detail: String) andThen {
+        tiger = DownloadTIGER(state_fips = "us", geo_level = "COUNTY")
+        zhvi = DownloadHomeValueTS()
+        map = BuildNationalSeriesTimeMap(
+            tiger_file = tiger.file,
+            ts_file = zhvi.ts_file,
+            metric = "home_value",
+            title = "Typical home value by county",
+            region = "us-home-value",
+            source_note = "Zillow Home Value Index (ZHVI): smoothed, seasonally-adjusted typical value of homes in the 35th-65th percentile (single-family + condo), one June frame per year, 2000-2025. Not a transaction median; rural counties without enough sales history show no estimate. Data provided by Zillow"
+        )
+        yield BuildHomeValueTimeMapUS(
+            status = "completed",
+            html_path = map.html_path,
+            detail = map.valued_count ++ " of " ++ map.county_count ++ " counties with latest-year data"
+        )
+    }
+
+    /**
      * National rankings: download + extract TIGER state geometry, then build the
      * rankings table + per-metric national choropleths from the per-state
      * metrics-summary.json files (run BuildStateMetricsMapUS first).

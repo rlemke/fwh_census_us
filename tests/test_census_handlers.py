@@ -50,7 +50,7 @@ def _census_import(module_name: str):
 class TestDownloadHandlers:
     def test_dispatch_keys(self):
         mod = _census_import("downloads.download_handlers")
-        assert len(mod._DISPATCH) == 13
+        assert len(mod._DISPATCH) == 14
         assert "census.Operations.DownloadACS" in mod._DISPATCH
         assert "census.Operations.DownloadTIGER" in mod._DISPATCH
         assert "census.Operations.DownloadACSDetailed" in mod._DISPATCH
@@ -84,7 +84,7 @@ class TestDownloadHandlers:
         mod = _census_import("downloads.download_handlers")
         runner = MagicMock()
         mod.register_handlers(runner)
-        assert runner.register_handler.call_count == 13
+        assert runner.register_handler.call_count == 14
 
     def test_handle_download_acs_detailed(self):
         mod = _census_import("downloads.download_handlers")
@@ -1092,9 +1092,9 @@ class TestInitRegistryHandlers:
             os.environ.pop("GITHUB_TOKEN", None)
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_registry_handlers(runner)
-        # 13 downloads + 15 ACS + 5 TIGER + 2 summary + 15 ingestion + 6 vocab
+        # 14 downloads + 15 ACS + 5 TIGER + 2 summary + 15 ingestion + 6 vocab
         # + 10 vulnerability + 0 publish (no token)
-        assert runner.register_handler.call_count == 62
+        assert runner.register_handler.call_count == 63
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
@@ -1103,7 +1103,7 @@ class TestInitRegistryHandlers:
             os.environ.pop("GITHUB_TOKEN", None)
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_handlers(poller)
-        assert poller.register.call_count == 62
+        assert poller.register.call_count == 63
 
     def test_publish_handler_registers_only_with_token(self):
         mod = _census_import("__init__")
@@ -1111,4 +1111,4 @@ class TestInitRegistryHandlers:
         runner = MagicMock()
         with patch.dict(os.environ, {"GITHUB_TOKEN": "x"}, clear=False):
             mod.register_all_registry_handlers(runner)
-        assert runner.register_handler.call_count == 63
+        assert runner.register_handler.call_count == 64

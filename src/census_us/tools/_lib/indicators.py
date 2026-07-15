@@ -725,3 +725,60 @@ def build_unauthorized_ts_csv() -> dict[str, Any]:
         len(series), len(years), years[0], years[-1], dest,
     )
     return _file_info(dest, PEW_STATES_URL, False)
+
+
+# ---------------------------------------------------------------------------
+# Zillow ZHVI — median home value by county, annual (June) 2000-present.
+# ---------------------------------------------------------------------------
+
+ZHVI_URL = (
+    "https://files.zillowstatic.com/research/public_csvs/zhvi/"
+    "County_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv"
+)
+
+
+def parse_zhvi_csv(path: str) -> dict[str, dict[int, float]]:
+    """{fips: {year: June ZHVI}} from Zillow's county workbook (monthly
+    columns; one mid-year frame per year keeps map payloads sane)."""
+    out: dict[str, dict[int, float]] = {}
+    with cstore.open_read(path, newline="") as f:
+        reader = csv.DictReader(f)
+        june_cols = [c for c in (reader.fieldnames or []) if c.endswith("-06-30")]
+        for row in reader:
+            if (row.get("RegionType") or "") != "county":
+                continue
+            fips = (row.get("StateCodeFIPS") or "").zfill(2) + (
+                row.get("MunicipalCodeFIPS") or ""
+            ).zfill(3)
+            if len(fips) != 5:
+                continue
+            for c in june_cols:
+                try:
+                    val = float(row.get(c, ""))
+                except (TypeError, ValueError):
+                    continue
+                out.setdefault(fips, {})[int(c[:4])] = round(val)
+    return out
+
+
+def build_home_value_ts_csv() -> dict[str, Any]:
+    """Zillow ZHVI county series → wide annual (June) time CSV, 2000-present.
+    ZHVI = smoothed, seasonally-adjusted typical home value (35th-65th
+    percentile, single-family + condo). Data provided by Zillow."""
+    cache = cstore.join(cstore.cache_root(), "indicators")
+    raw = _fetch(ZHVI_URL, cstore.join(cache, "zillow_zhvi_county.csv"), min_bytes=1000000)
+    series = parse_zhvi_csv(raw)
+    years = sorted({y for by_year in series.values() for y in by_year})
+    if not years:
+        raise RuntimeError("No ZHVI rows parsed")
+    dest = cstore.join(cache, "zillow_home_value_ts.csv")
+    with cstore.open_write(dest, "w", newline="") as f:
+        wr = csv.writer(f)
+        wr.writerow(["GEOID", "NAME"] + [f"y{y}" for y in years])
+        for fips in sorted(series):
+            wr.writerow(
+                [f"0500000US{fips}", ""]
+                + [series[fips].get(y, "") for y in years]
+            )
+    logger.info("ZHVI: %d counties x %d years -> %s", len(series), len(years), dest)
+    return _file_info(dest, ZHVI_URL, False)

@@ -109,6 +109,12 @@ namespace census.Operations {
       * wide STATE-level time CSV. */
     event facet DownloadUnauthorizedTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
 
+    /** Zillow ZHVI typical home value by county — smoothed, seasonally-
+      * adjusted 35th-65th-percentile single-family+condo value; monthly since
+      * 2000, condensed to one mid-year (June) frame per year → wide time CSV.
+      * Data provided by Zillow (open research CSV, attribution required). */
+    event facet DownloadHomeValueTS() => (ts_file: CensusFile) with Effect(kind = "external") with Cost(tier = "moderate") with Timeout(minutes = 10)
+
     /** HUD Point-in-Time homeless counts (by Continuum of Care, one sheet per
       * year 2007+) apportioned to counties by population share of each CoC
       * (Byrne HUD-CoC crosswalk) → wide per-10k-residents CSV. An explicit

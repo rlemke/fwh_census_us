@@ -254,3 +254,17 @@ class TestMortalitySources:
         # non-numeric "<5,000" cells skip; MOE column never parsed
         assert out["56"] == {2023: 5000.0, 2021: 5000.0}
         assert "US" not in out and len([k for k in out if k == "06"]) == 1
+
+    def test_parse_zhvi(self, tmp_path):
+        p = tmp_path / "zhvi.csv"
+        with open(p, "w", newline="") as f:
+            wr = csv.writer(f)
+            wr.writerow(["RegionID", "RegionName", "RegionType", "StateCodeFIPS",
+                         "MunicipalCodeFIPS", "2000-05-31", "2000-06-30", "2025-06-30"])
+            wr.writerow(["1", "San Francisco County", "county", "06", "075",
+                         "440000", "446919.94", "1289229.11"])
+            wr.writerow(["2", "Nowhere", "msa", "06", "000", "1", "2", "3"])  # non-county skipped
+            wr.writerow(["3", "Empty County", "county", "48", "999", "", "", ""])
+        out = indicators.parse_zhvi_csv(str(p))
+        assert out["06075"] == {2000: 446920, 2025: 1289229}
+        assert "06000" not in out and "48999" not in out

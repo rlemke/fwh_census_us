@@ -117,6 +117,8 @@ METRICS: list[Metric] = [
            raw="cdc_suicide", scale=1.0, national_only=True),
     Metric("unauthorized_population", "Unauthorized immigrant population", "count", "high", False,
            raw="pew_unauthorized", scale=1.0, national_only=True),
+    Metric("home_value", "Typical home value (ZHVI)", "dollar", "high", False,
+           raw="zhvi_home_value", scale=1.0, national_only=True),
     Metric("people_of_color", "People of color", "pct", "high", False,
            num=["B03002_003E"], den="B03002_001E", invert=True),
     Metric("hispanic", "Hispanic / Latino", "pct", "high", False,

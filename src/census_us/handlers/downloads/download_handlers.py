@@ -16,6 +16,7 @@ from ..shared.census_utils import (
     build_drug_overdose_ts_csv,
     build_heart_disease_ts_csv,
     build_suicide_ts_csv,
+    build_home_value_ts_csv,
     build_homeless_ts_csv,
     build_unauthorized_ts_csv,
     download_acs,
@@ -315,6 +316,21 @@ def handle_download_unauthorized_ts(params: dict[str, Any]) -> dict[str, Any]:
         raise
 
 
+def handle_download_home_value_ts(params: dict[str, Any]) -> dict[str, Any]:
+    """Zillow ZHVI county home values (annual June frames, 2000-present)
+    -> wide time CSV."""
+    step_log = params.get("_step_log")
+    try:
+        ts_file = build_home_value_ts_csv()
+        if step_log:
+            step_log(f"DownloadHomeValueTS: {ts_file['size']}B", level="success")
+        return {"ts_file": ts_file}
+    except Exception as exc:
+        if step_log:
+            step_log(f"DownloadHomeValueTS: {exc}", level="error")
+        raise
+
+
 def handle_download_homeless_ts(params: dict[str, Any]) -> dict[str, Any]:
     """HUD PIT CoC counts + CoC-county crosswalk -> homeless per-10k wide CSV.
 
@@ -351,6 +367,7 @@ _DISPATCH: dict[str, Any] = {
     f"{NAMESPACE}.DownloadDrugOverdoseTS": handle_download_drug_overdose_ts,
     f"{NAMESPACE}.DownloadSuicideTS": handle_download_suicide_ts,
     f"{NAMESPACE}.DownloadUnauthorizedTS": handle_download_unauthorized_ts,
+    f"{NAMESPACE}.DownloadHomeValueTS": handle_download_home_value_ts,
     f"{NAMESPACE}.DownloadHomelessTS": handle_download_homeless_ts,
 }
 
