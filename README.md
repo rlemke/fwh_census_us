@@ -14,6 +14,29 @@ Outputs (cache + GeoJSON + maps) follow `FW_STORAGE`: on the fleet they land in
 shared MinIO (`s3://afl-cache/cache/census-us/`); locally under
 `$FW_DATA_ROOT`.
 
+## Feature specifications
+
+Per-feature specs live under [`docs/`](docs/README.md) — one document per feature,
+each covering how it works, fan-out, the ACS tables / TIGER layers / external
+sources it reads, external libraries, its facets & workflows, and its cache/output.
+Start with the flagship [choropleth map engine](docs/choropleth-maps.md); see
+[`docs/README.md`](docs/README.md) for the full index.
+
+| Spec | What it covers |
+|------|----------------|
+| [choropleth-maps](docs/choropleth-maps.md) | **Flagship.** `census.Vulnerability` render engine — national county maps, time maps, per-state metric maps, rankings. |
+| [workflows](docs/workflows.md) | The `AnalyzeState` + `Build*MapUS` entry points; per-state vs per-metric fan-out. |
+| [metrics-registry](docs/metrics-registry.md) | `_lib/metrics.py` — the single source of truth for every indicator. |
+| [downloads](docs/downloads.md) | `census.Operations` — ACS/TIGER + external indicator/time-series downloads. |
+| [acs-extraction](docs/acs-extraction.md) | `census.ACS` — slice one ACS table's columns from a downloaded CSV. |
+| [tiger-geometry](docs/tiger-geometry.md) | `census.TIGER` — TIGER shapefile ZIP → GeoJSON polygons. |
+| [summary-and-join](docs/summary-and-join.md) | `census.Summary` — `JoinGeo` (the GEOID fix) + `SummarizeState`. |
+| [vocab](docs/vocab.md) | `census.Vocab` — NL indicator → ACS `table_id` resolution. |
+| [svi](docs/svi.md) | The Social Vulnerability Index compute path + national index. |
+| [ingestion](docs/ingestion.md) | `census.Ingestion` — 15 `*ToDB` MongoDB upserts. |
+| [publish](docs/publish.md) | `census.Publish` — push output bundles to GitHub Pages. |
+| [storage-and-cache](docs/storage-and-cache.md) | The `FW_STORAGE`-aware cache/output wrapper. |
+
 Discovered by the Facetwork runner via the `facetwork.examples` entry point
 declared in `pyproject.toml`. After `pip install -e .`, Facetwork's
 `scripts/start-runner --example census-us` and `scripts/seed-examples`
