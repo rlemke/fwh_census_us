@@ -4,14 +4,14 @@ This repository is a **standalone Facetwork example package**. The Facetwork
 platform (workflow compiler + runtime) lives at
 `/Users/ralph_lemke/facetwork`; this repo only contains US-Census-specific
 FFL, handlers, and tools. The two are wired together via the
-`facetwork.examples` entry point in `pyproject.toml`.
+`facetwork.domains` entry point in `pyproject.toml`.
 
 ## Quick orientation
 
 ```
 fwh_census_us/
-├── pyproject.toml                  # declares the facetwork.examples entry point
-├── src/census_us/__init__.py       # exports `example: ExamplePackage`
+├── pyproject.toml                  # declares the facetwork.domains entry point
+├── src/census_us/__init__.py       # exports `domain: DomainPackage`
 ├── src/census_us/handlers/         # event-facet implementations (5 subpackages)
 ├── src/census_us/ffl/              # top-level FFL workflows
 ├── src/census_us/handlers/<domain>/ffl/   # per-domain FFL files
@@ -27,8 +27,8 @@ fwh_census_us/
 pip install -e ".[mongodb]"
 
 # From a Facetwork checkout:
-scripts/seed-examples --include census-us
-scripts/start-runner --example census-us -- --log-format text
+fw ffl seed --include census-us
+fw runner start --domain census-us -- --log-format text
 
 # CLIs (call the same _lib/ as the handlers — see Tools pattern below):
 src/census_us/tools/download.sh --kind acs --variable B01003 --states CA,TX
@@ -136,7 +136,7 @@ $FW_DATA_ROOT/cache/census-us/                   (or $FW_CENSUS_CACHE_DIR)
    `_DISPATCH`. Wire it into `register_all_registry_handlers`.
 5. Drop the FFL declaration into the right
    `src/census_us/handlers/<domain>/ffl/` (or top-level `ffl/`).
-6. Re-run `scripts/seed-examples --include census-us` so the new flow
+6. Re-run `fw ffl seed --include census-us` so the new flow
    shows up in the dashboard.
 
 ## Code review checklist

@@ -29,7 +29,7 @@ because their input shapes are workflow-internal — pass-through dicts
 of all 12 ACS variables. Use the FFL workflows for those steps:
 
 ```bash
-scripts/seed-examples --include census-us
+fw ffl seed --include census-us
 # Submit `census.workflows.AnalyzeStateWithDB` with `state_fips` from the dashboard
 ```
 

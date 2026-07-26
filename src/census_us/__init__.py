@@ -9,8 +9,8 @@ point declared in ``pyproject.toml``::
     census-us = "census_us:domain"
 
 Once ``pip install -e .`` has been run from this repository, Facetwork's
-``scripts/start-runner --example census-us`` and
-``scripts/seed-examples`` will pick this package up automatically — no
+``fw runner start --domain census-us`` and
+``fw ffl seed`` will pick this package up automatically — no
 edits to the Facetwork repository required.
 """
 

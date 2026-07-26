@@ -37,9 +37,9 @@ Start with the flagship [choropleth map engine](docs/choropleth-maps.md); see
 | [publish](docs/publish.md) | `census.Publish` — push output bundles to GitHub Pages. |
 | [storage-and-cache](docs/storage-and-cache.md) | The `FW_STORAGE`-aware cache/output wrapper. |
 
-Discovered by the Facetwork runner via the `facetwork.examples` entry point
+Discovered by the Facetwork runner via the `facetwork.domains` entry point
 declared in `pyproject.toml`. After `pip install -e .`, Facetwork's
-`scripts/start-runner --example census-us` and `scripts/seed-examples`
+`fw runner start --domain census-us` and `fw ffl seed`
 pick this package up automatically.
 
 ## Install
@@ -50,14 +50,14 @@ cd ~/fw_handlers/fwh_census_us
 pip install -e ".[mongodb]"     # MongoDB extras enable the ingestion handlers
 ```
 
-This registers the package under the `facetwork.examples` entry-point group,
+This registers the package under the `facetwork.domains` entry-point group,
 making it discoverable by any Facetwork installation in the same environment.
 
 ## Run from a Facetwork checkout
 
 ```bash
-scripts/seed-examples --include census-us           # one-time, seeds FFL
-scripts/start-runner --example census-us -- --log-format text
+fw ffl seed --include census-us           # one-time, seeds FFL
+fw runner start --domain census-us -- --log-format text
 ```
 
 This brings up the dashboard on `:8080` and a runner that polls for
@@ -139,7 +139,7 @@ installed — useful for offline tests and partial-pipeline runs.
 
 ```
 fwh_census_us/
-├── pyproject.toml                  # facetwork.examples entry point
+├── pyproject.toml                  # facetwork.domains entry point
 ├── README.md
 ├── CLAUDE.md                       # guidance for Claude Code in this repo
 ├── USER_GUIDE.md                   # human-facing walkthrough
@@ -147,7 +147,7 @@ fwh_census_us/
 ├── conftest.py                     # pytest fixtures
 ├── tests/                          # repo-level integration tests
 └── src/census_us/
-    ├── __init__.py                 # exports `example: ExamplePackage`
+    ├── __init__.py                 # exports `domain: DomainPackage`
     ├── handlers/                   # 6 event-facet subpackages
     │   ├── acs/                    # ACS demographic extraction
     │   ├── downloads/              # raw HTTP downloads (ACS + TIGER)
