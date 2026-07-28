@@ -14,6 +14,48 @@ Outputs (cache + GeoJSON + maps) follow `FW_STORAGE`: on the fleet they land in
 shared MinIO (`s3://afl-cache/cache/census-us/`); locally under
 `$FW_DATA_ROOT`.
 
+## FFL at a glance
+
+The domain is driven from [FFL](https://github.com/rlemke/facetwork/blob/main/docs/reference/language/grammar.md),
+Facetwork's workflow language. A step is `name = Facet(args)`; steps that
+reference each other are ordered, steps that don't run **in parallel** — so one
+download can feed a whole batch of extracts at once:
+
+```ffl
+namespace my.census {
+
+    use census.Operations
+    use census.ACS
+
+    /** One ACS pull, five extracts in parallel. */
+    workflow StateProfile(state_fips: String = "41") => (income: String, poverty: String) andThen {
+
+        acs = census.Operations.DownloadACS(state_fips = $.state_fips)
+
+        pop = census.ACS.ExtractPopulation(file = acs.file, state_fips = $.state_fips)
+        income = census.ACS.ExtractIncome(file = acs.file, state_fips = $.state_fips)
+        housing = census.ACS.ExtractHousing(file = acs.file, state_fips = $.state_fips)
+        poverty = census.ACS.ExtractPoverty(file = acs.file, state_fips = $.state_fips)
+        employment = census.ACS.ExtractEmployment(file = acs.file, state_fips = $.state_fips)
+
+        yield StateProfile(
+            income = income.result.output_path,
+            poverty = poverty.result.output_path)
+    }
+}
+```
+
+```bash
+fw ffl run --primary my.ffl --library src/census_us/ffl/census.ffl \
+  --workflow my.census.StateProfile --inputs '{"state_fips": "41"}'
+```
+
+📖 **[docs/ffl-examples.md](docs/ffl-examples.md)** — the full example gallery:
+array arguments into `JoinGeo`, `foreach` over states (and the disk-guard
+caveat), `census.Publish.PublishWebBundle` — the publisher every map domain
+reuses — `when` guards, call-time mixins and `catch`. Every snippet there is
+compile-checked.
+
 ## Feature specifications
 
 Per-feature specs live under [`docs/`](docs/README.md) — one document per feature,
