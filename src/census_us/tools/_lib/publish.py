@@ -117,8 +117,20 @@ _HTML_HEAD = (
 )
 
 
+# Bare http(s) URLs in a description become links. The text is escape()d FIRST,
+# so this cannot inject markup — it only wraps an already-safe URL run. Needed
+# because a description is the only place a section page can point somewhere
+# OUTSIDE the repo (bundle links are always relative repo paths), e.g. a LAN
+# MinIO archive that is far too large to publish to GitHub Pages.
+_URL_RE = re.compile(r'(https?://[^\s<>"\')]+)')
+
+
+def _linkify(escaped: str) -> str:
+    return _URL_RE.sub(r'<a href="\1">\1</a>', escaped)
+
+
 def _desc_html(description: str) -> str:
-    return f'<p class="desc">{escape(description)}</p>\n' if description else ""
+    return f'<p class="desc">{_linkify(escape(description))}</p>\n' if description else ""
 _HTML_FOOT = "<p style=\"color:#888;font-size:.85rem;margin-top:1.5rem\">Published from Facetwork.</p>\n</body></html>\n"
 
 

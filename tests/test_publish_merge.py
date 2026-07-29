@@ -104,3 +104,34 @@ def test_publish_passes_gate_with_token(monkeypatch):
         raise AssertionError("token present but task was still released")
     except Exception:
         pass  # downstream handler failure is fine — the gate let it through
+
+
+class TestDescriptionLinkify:
+    """A description is the ONLY place a section page can point outside the repo.
+
+    Bundle links are always relative repo paths, so the LAN MinIO archive (all
+    3,167 county atlases, far too large for GitHub Pages) can only be reached
+    from the county-atlas page via its description. Escaping happens FIRST, so
+    linkifying cannot inject markup.
+    """
+
+    def test_bare_url_becomes_a_link(self):
+        from census_us.tools._lib.publish import _desc_html
+
+        out = _desc_html("full set: http://afl-minio:9000/osm-extracts/county-atlas/index.html")
+        assert '<a href="http://afl-minio:9000/osm-extracts/county-atlas/index.html">' in out
+
+    def test_markup_in_a_description_is_still_escaped(self):
+        from census_us.tools._lib.publish import _desc_html
+
+        out = _desc_html("<script>alert(1)</script> then http://a.b/c")
+        assert "<script>" not in out
+        assert "&lt;script&gt;" in out
+        assert '<a href="http://a.b/c">' in out
+
+    def test_description_without_a_url_is_unchanged(self):
+        from census_us.tools._lib.publish import _desc_html
+
+        out = _desc_html("plain text & an ampersand")
+        assert "<a href=" not in out
+        assert "&amp;" in out
