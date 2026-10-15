@@ -129,6 +129,20 @@ def _linkify(escaped: str) -> str:
     return _URL_RE.sub(r'<a href="\1">\1</a>', escaped)
 
 
+_ANCHOR_RE = re.compile(r'<a href="[^"]*">(.*?)</a>', re.S)
+
+
+def _desc_text(inner_html: str) -> str:
+    """The description text a ``<p class="desc">`` was written from.
+
+    ⚠️ Inverse of :func:`_desc_html`: drop the anchors ``_linkify`` added, THEN
+    unescape. Unescaping alone kept the anchor as literal text, the next write
+    escaped and linkified it again, and every publish wrapped the URL in one
+    more layer -- the county-atlas description doubled each time (5,242 ->
+    10,251 characters on 2026-10-15, six nested anchors)."""
+    return unescape(_ANCHOR_RE.sub(r"\1", inner_html))
+
+
 def _desc_html(description: str) -> str:
     return f'<p class="desc">{_linkify(escape(description))}</p>\n' if description else ""
 _HTML_FOOT = "<p style=\"color:#888;font-size:.85rem;margin-top:1.5rem\">Published from Facetwork.</p>\n</body></html>\n"
@@ -186,7 +200,7 @@ def _harvest_existing(repo_dir: str) -> tuple[list[tuple[str, str]], dict[str, s
         txt = open(root, encoding="utf-8").read()
         m = _DESC_RE.search(txt)
         if m:
-            descs[""] = unescape(m.group(1))
+            descs[""] = _desc_text(m.group(1))
         for lm in _LINK_RE.finditer(txt):
             links.append((unescape(lm.group(2)), unescape(lm.group(1))))
     for sec in sorted({d.split("/")[0] for _, d in links if "/" in d}):
@@ -194,7 +208,7 @@ def _harvest_existing(repo_dir: str) -> tuple[list[tuple[str, str]], dict[str, s
         if os.path.exists(sidx):
             m = _DESC_RE.search(open(sidx, encoding="utf-8").read())
             if m:
-                descs[sec] = unescape(m.group(1))
+                descs[sec] = _desc_text(m.group(1))
     return links, descs
 
 

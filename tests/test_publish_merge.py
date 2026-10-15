@@ -135,3 +135,29 @@ class TestDescriptionLinkify:
         out = _desc_html("plain text & an ampersand")
         assert "<a href=" not in out
         assert "&amp;" in out
+
+
+def test_a_description_with_a_url_survives_repeated_publishes(tmp_path):
+    """2026-10-15: harvest unescaped the description but kept the anchor
+    _linkify had added as text, so each publish wrapped the URL in one more
+    layer (county-atlas: 5,242 -> 10,251 characters in one publish)."""
+    from census_us.tools._lib import publish as P
+
+    text = ("Four sample atlases & the full set: "
+            "http://archive.example.org/county-atlas/index.html (on the LAN).")
+    repo = str(tmp_path)
+    sections = {"county-atlas": [("Coos County", "county-atlas/oregon/coos")]}
+    os.makedirs(os.path.join(repo, "county-atlas"), exist_ok=True)
+    desc = text
+    for _ in range(4):  # write, harvest, write again ...
+        with open(os.path.join(repo, "index.html"), "w", encoding="utf-8") as f:
+            f.write(P._grouped_landing_html("Maps", sections, description=""))
+        with open(os.path.join(repo, "county-atlas", "index.html"), "w", encoding="utf-8") as f:
+            f.write(P._landing_html("County Atlas maps", [("Coos County", "oregon/coos")],
+                                    description=desc))
+        _links, descs = P._harvest_existing(repo)
+        desc = descs["county-atlas"]
+        assert desc == text
+    page = open(os.path.join(repo, "county-atlas", "index.html"), encoding="utf-8").read()
+    assert page.count("<a href=\"http://archive.example.org") == 1
+    assert "&lt;a href" not in page
