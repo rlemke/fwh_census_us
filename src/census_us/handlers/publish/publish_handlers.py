@@ -106,16 +106,21 @@ def handle(payload: dict) -> dict:
     return handler(payload)
 
 
+#: The registration is shared fleet-wide, so the token requirement travels WITH
+#: it: a runner lacking the token does not advertise the facet and never claims
+#: the task (facetwork ``registration_env_missing``). Every host registers it
+#: identically, so whichever writes last, the requirement is never lost.
+REQUIRES_ENV = ["GITHUB_TOKEN|GH_TOKEN"]
+
+
 def register_handlers(runner) -> None:
-    """Register the publish facet with a RegistryRunner — only where a GitHub
-    token exists, so the publish task is claimed on the credentialed host."""
-    if not _has_token():
-        return
+    """Register the publish facet with a RegistryRunner, declaring the token it needs."""
     for facet_name in _DISPATCH:
         runner.register_handler(
             facet_name=facet_name,
             module_uri=f"file://{os.path.abspath(__file__)}",
             entrypoint="handle",
+            metadata={"requires_env": REQUIRES_ENV},
         )
 
 

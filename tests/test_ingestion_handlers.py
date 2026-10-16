@@ -424,14 +424,14 @@ class TestIngestionHandlers:
 
 class TestInitRegistryHandlersWithIngestion:
     def test_register_all_registry_handlers(self):
-        # Publish handler is token-gated; with no token, total stays 49.
+        # The publish facet registers everywhere (it carries requires_env).
         mod = _census_import("__init__")
         runner = MagicMock()
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GITHUB_TOKEN", None)
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_registry_handlers(runner)
-        assert runner.register_handler.call_count == 64
+        assert runner.register_handler.call_count == 65
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")

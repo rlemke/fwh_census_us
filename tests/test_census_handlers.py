@@ -1085,7 +1085,8 @@ class TestTIGERExtractor:
 
 class TestInitRegistryHandlers:
     def test_register_all_registry_handlers(self):
-        # The publish handler is token-gated; with no token it registers nothing.
+        # The publish facet is ALWAYS registered, carrying requires_env so a
+        # token-less runner does not advertise it (and never claims the task).
         mod = _census_import("__init__")
         runner = MagicMock()
         with patch.dict(os.environ, {}, clear=False):
@@ -1093,8 +1094,11 @@ class TestInitRegistryHandlers:
             os.environ.pop("GH_TOKEN", None)
             mod.register_all_registry_handlers(runner)
         # 15 downloads + 15 ACS + 5 TIGER + 2 summary + 15 ingestion + 6 vocab
-        # + 10 vulnerability + 0 publish (no token)
-        assert runner.register_handler.call_count == 64
+        # + 10 vulnerability + 1 publish
+        assert runner.register_handler.call_count == 65
+        pub = [c for c in runner.register_handler.call_args_list
+               if c.kwargs.get("facet_name") == "census.Publish.PublishWebBundle"]
+        assert pub and pub[0].kwargs["metadata"] == {"requires_env": ["GITHUB_TOKEN|GH_TOKEN"]}
 
     def test_register_all_handlers(self):
         mod = _census_import("__init__")
