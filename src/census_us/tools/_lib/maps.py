@@ -236,7 +236,7 @@ function legend(m){{
     d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(val,m.fmt)}}`; sc.appendChild(d); }});
 }}
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
-  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  sources:{{bm:{{type:'raster',tiles:['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}}}});
 map.addControl(new maplibregl.NavigationControl());
 const sel=document.getElementById('metric');
@@ -416,7 +416,7 @@ function legend(m){{
     d.innerHTML=`<span style="background:${{c}}"></span>${{fmt(val,m.fmt)}}`; sc.appendChild(d); }});
 }}
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
-  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  sources:{{bm:{{type:'raster',tiles:['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38],zoom:3}});
 map.addControl(new maplibregl.NavigationControl());
 const sel=document.getElementById('metric');
@@ -848,7 +848,7 @@ document.getElementById('rktoggle').onclick=()=>{{
 const expr=['interpolate',['linear'],['get','val']];
 for(const [v,c] of STOPS) expr.push(v,c);
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
-  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  sources:{{bm:{{type:'raster',tiles:['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38.5],zoom:3.4}});
 map.addControl(new maplibregl.NavigationControl(),'bottom-right');
 map.on('load',()=>{{
@@ -1179,7 +1179,7 @@ function popupFor(p,lngLat){{const y=YEARS[yi], v=p['y'+y], r=rankOf(p,y);
       `<details><summary>history</summary><table style="font-size:11px">${{hist}}</table></details>`).addTo(map);
 }}
 const map=new maplibregl.Map({{container:'map',style:{{version:8,
-  sources:{{bm:{{type:'raster',tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &copy; CARTO &middot; US Census Bureau'}}}},
+  sources:{{bm:{{type:'raster',tiles:['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],tileSize:256,attribution:'&copy; OpenStreetMap &middot; US Census Bureau'}}}},
   layers:[{{id:'bm',type:'raster',source:'bm'}}]}},center:[-96,38.5],zoom:3.4}});
 map.addControl(new maplibregl.NavigationControl(),'bottom-right');
 const slider=document.getElementById('yslider'), yrlab=document.getElementById('yr');
