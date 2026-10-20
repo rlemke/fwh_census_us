@@ -34,6 +34,7 @@ from html import escape, unescape
 
 from facetwork.runtime import storage as _fws
 
+from . import site_provenance
 from . import storage as cstore
 
 
@@ -338,6 +339,13 @@ def publish_bundles(
         # Root landing, grouped by section (each heading links its section index).
         with open(os.path.join(repo_dir, "index.html"), "w", encoding="utf-8") as f:
             f.write(_grouped_landing_html(landing_title, sections, description=desc.get("", "")))
+
+        # Every map page links back to the FFL that built it — the whole site,
+        # not just this call's bundles (see site_provenance for why here).
+        _stamped, unknown = site_provenance.stamp_tree(repo_dir)
+        if unknown:
+            print(f"publish: {len(unknown)} page(s) have no FFL link and no registered "
+                  f"producer: {', '.join(unknown[:10])}", flush=True)
 
         _run(["git", "add", "-A"], cwd=repo_dir, env=env)
         commit = _run(["git", "commit", "-q", "-m",
