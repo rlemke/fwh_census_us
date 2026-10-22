@@ -164,12 +164,21 @@ def _landing_html(title: str, links: list[tuple[str, str]], description: str = "
             + f"<ul>\n{items}\n</ul>\n" + _HTML_FOOT)
 
 
+_UNSECTIONED = "Studies and collections"
+
+
 def _grouped_landing_html(
     title: str, sections: dict[str, list[tuple[str, str]]], description: str = ""
 ) -> str:
-    """Root landing grouped by top-level section; each heading links its section index."""
+    """Root landing grouped by top-level section; each heading links its section index.
+
+    Bundles with a one-segment dest (``amr``, ``repro``) belong to no section.
+    They go LAST under their own heading: an unheaded list placed in insertion
+    order reads as part of whichever section happens to precede it."""
     blocks = []
-    for sec, items in sections.items():
+    ordered = [(s, i) for s, i in sections.items() if s]
+    ordered += [(s, i) for s, i in sections.items() if not s]
+    for sec, items in ordered:
         lis = "\n".join(
             f'  <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'
             for label, dest in items
@@ -178,7 +187,7 @@ def _grouped_landing_html(
             pretty = sec.replace("-", " ").replace("_", " ").title()
             blocks.append(f'<h2><a href="{escape(sec)}/index.html">{escape(pretty)}</a></h2>\n<ul>\n{lis}\n</ul>')
         else:
-            blocks.append(f"<ul>\n{lis}\n</ul>")
+            blocks.append(f"<h2>{_UNSECTIONED}</h2>\n<ul>\n{lis}\n</ul>")
     return (_HTML_HEAD.format(title=escape(title)) + _desc_html(description)
             + "\n".join(blocks) + "\n" + _HTML_FOOT)
 

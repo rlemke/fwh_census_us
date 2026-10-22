@@ -161,3 +161,28 @@ def test_a_description_with_a_url_survives_repeated_publishes(tmp_path):
     page = open(os.path.join(repo, "county-atlas", "index.html"), encoding="utf-8").read()
     assert page.count("<a href=\"http://archive.example.org") == 1
     assert "&lt;a href" not in page
+
+
+def test_unsectioned_bundles_get_their_own_heading_last(tmp_path):
+    """A one-segment dest has no section. Listed unheaded in insertion order it
+    read as part of the preceding section (AMR and repro appeared under Roads)."""
+    from census_us.tools._lib import publish as P
+
+    sections = {
+        "roads": [("Scenic roads - Asia", "roads/asia")],
+        "": [("Antibiotic resistance", "amr"), ("reproduction studies", "repro")],
+        "world": [("Volcanoes", "world/volcanoes")],
+    }
+    html = P._grouped_landing_html("Maps", sections)
+    heading = f"<h2>{P._UNSECTIONED}</h2>"
+    assert html.count(heading) == 1
+    # after every real section, and immediately followed by its own list
+    assert html.index(heading) > html.index('href="world/index.html"')
+    assert html.index(heading) < html.index('href="amr/index.html"')
+    assert html.index('href="roads/asia/index.html"') < html.index('href="world/index.html"')
+    # the harvest still recovers every link, unsectioned ones included
+    repo = str(tmp_path)
+    with open(os.path.join(repo, "index.html"), "w", encoding="utf-8") as f:
+        f.write(html)
+    links, _ = P._harvest_existing(repo)
+    assert sorted(d for _, d in links) == ["amr", "repro", "roads/asia", "world/volcanoes"]
