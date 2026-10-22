@@ -81,3 +81,14 @@ def test_every_registry_entry_is_well_formed():
         assert key == key.strip("/") and key, key
         assert "." in wf, (key, wf)
         assert url.startswith("https://github.com/") and "/blob/" in url and url.endswith(".ffl"), url
+
+
+def test_redirect_stubs_at_a_moved_pages_old_path_are_not_maps(tmp_path):
+    root = str(tmp_path)
+    stub = ('<!doctype html><meta charset="utf-8">'
+            '<meta http-equiv="refresh" content="0; url=../health/amr/index.html">'
+            '<a href="../health/amr/index.html">Moved</a>')
+    _write(root, "old/index.html", stub)
+
+    assert SP.stamp_tree(root, REG) == ([], [])
+    assert _read(root, "old/index.html") == stub

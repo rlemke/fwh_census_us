@@ -126,6 +126,11 @@ def _is_gallery_index(rel: str, html: str) -> bool:
     return rel.count("/") <= 1 and rel.endswith("index.html") and _GALLERY_SIGNATURE in html
 
 
+def _is_redirect(html: str) -> bool:
+    """A stub left at a moved page's old path to forward its links; not a map."""
+    return 'http-equiv="refresh"' in html.lower() and len(html) < 2000
+
+
 def lookup(page_dir: str, registry: dict[str, tuple[str, str]] | None = None
            ) -> tuple[str, str] | None:
     """The producer of the page in ``page_dir`` (a site-relative directory), by
@@ -191,7 +196,7 @@ def stamp_tree(repo_dir: str, registry: dict[str, tuple[str, str]] | None = None
             path = os.path.join(dirpath, fn)
             with open(path, encoding="utf-8", errors="surrogateescape") as f:
                 html = f.read()
-            if _MARKER in html or _is_gallery_index(rel, html):
+            if _MARKER in html or _is_gallery_index(rel, html) or _is_redirect(html):
                 continue
             hit = lookup(rel_dir, registry)
             if not hit:
