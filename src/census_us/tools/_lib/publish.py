@@ -177,7 +177,11 @@ def _grouped_landing_html(
     order reads as part of whichever section happens to precede it."""
     blocks = []
     ordered = [(s, i) for s, i in sections.items() if s]
-    ordered += [(s, i) for s, i in sections.items() if not s]
+    # A one-segment dest that is also a section name ("county-atlas") points at
+    # that section's own index page, which its heading already links: drop it.
+    loose = [(lbl, d) for lbl, d in sections.get("", []) if d not in sections]
+    if loose:
+        ordered.append(("", loose))
     for sec, items in ordered:
         lis = "\n".join(
             f'  <li><a href="{escape(dest)}/index.html">{escape(label)}</a></li>'

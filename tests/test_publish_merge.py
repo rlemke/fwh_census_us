@@ -186,3 +186,21 @@ def test_unsectioned_bundles_get_their_own_heading_last(tmp_path):
         f.write(html)
     links, _ = P._harvest_existing(repo)
     assert sorted(d for _, d in links) == ["amr", "repro", "roads/asia", "world/volcanoes"]
+
+
+def test_a_bundle_at_a_section_index_is_not_listed_twice():
+    """county-atlas/index.html is both a bundle and the section page; the
+    heading already links it, so it must not also appear as a loose entry."""
+    from census_us.tools._lib import publish as P
+
+    sections = {
+        "county-atlas": [("Coos County", "county-atlas/oregon/coos")],
+        "": [("US County Atlas overview", "county-atlas"), ("Other", "amr")],
+    }
+    html = P._grouped_landing_html("Maps", sections)
+    assert html.count('href="county-atlas/index.html"') == 1
+    assert "US County Atlas overview" not in html
+    assert 'href="amr/index.html"' in html
+    # nothing loose left -> no empty heading
+    only = P._grouped_landing_html("Maps", {**sections, "": sections[""][:1]})
+    assert P._UNSECTIONED not in only
