@@ -12,7 +12,7 @@ FFL, handlers, and tools. The two are wired together via the
 fwh_census_us/
 ├── pyproject.toml                  # declares the facetwork.domains entry point
 ├── src/census_us/__init__.py       # exports `domain: DomainPackage`
-├── src/census_us/handlers/         # event-facet implementations (5 subpackages)
+├── src/census_us/handlers/         # event-facet implementations (8 subpackages)
 ├── src/census_us/ffl/              # top-level FFL workflows
 ├── src/census_us/handlers/<domain>/ffl/   # per-domain FFL files
 ├── src/census_us/tools/            # CLI utilities + _lib/ (the real implementation)
@@ -31,11 +31,10 @@ fw ffl seed --include census-us
 fw runner start --domain census-us -- --log-format text
 
 # CLIs (call the same _lib/ as the handlers — see Tools pattern below):
-src/census_us/tools/download.sh --kind acs --variable B01003 --states CA,TX
-src/census_us/tools/acs-extract.sh --variable B19013 --state CA
-src/census_us/tools/tiger-extract.sh --state CA --layer county
-src/census_us/tools/ingest-to-db.sh --variable B01003 --state CA
-src/census_us/tools/summarize-state.sh --state CA
+src/census_us/tools/download.sh --kind acs --state-fips 06
+src/census_us/tools/acs-extract.sh --csv <acs.csv> --table B19013 --state-fips 06
+src/census_us/tools/tiger-extract.sh --zip <tiger.zip> --state-fips 06
+src/census_us/tools/join-geo.sh --acs-path <acs.json> --tiger-path <tiger.json>
 
 # Tests
 pytest tests/ src/census_us/handlers/ -v
@@ -77,14 +76,17 @@ pymongo lazily inside functions.)
 
 | Subpackage | Domain | Facets |
 |------------|--------|--------|
-| `downloads/` | `census.Operations` | `DownloadACS`, `DownloadTIGER`, `DownloadACSDetailed` |
-| `acs/` | `census.ACS` | One per ACS variable (population, income, education, housing, …) |
-| `tiger/` | `census.TIGER` | County geometry extraction per state |
+| `downloads/` | `census.Operations` | `DownloadACS`, `DownloadTIGER`, `DownloadACSDetailed`, … + external indicator/time-series downloads (15) |
+| `acs/` | `census.ACS` | One per ACS table (population, income, education, housing, …; 15) |
+| `tiger/` | `census.TIGER` | County / state / tract / block-group / place geometry (5) |
 | `ingestion/` | `census.Ingestion` | 15 `*ToDB` upsert handlers |
 | `summary/` | `census.Summary` | `JoinGeo`, `SummarizeState` |
+| `vocab/` | `census.Vocab` | `ResolveVariable`, `ListVariables` |
+| `vulnerability/` | `census.Vulnerability` | SVI + the choropleth render engine (11) |
+| `publish/` | `census.Publish` | `PublishWebBundle` (GitHub Pages; needs `GITHUB_TOKEN`) |
 
 Each module exposes `register_handlers(runner)` for the RegistryRunner;
-all five are wired into `register_all_registry_handlers` in
+all eight are wired into `register_all_registry_handlers` in
 `src/census_us/handlers/__init__.py`.
 
 ### Gotchas (learned the hard way)
@@ -116,11 +118,13 @@ Both the CLIs and the FFL handlers read/write the same on-disk cache:
 
 ```
 $FW_DATA_ROOT/cache/census-us/                   (or $FW_CENSUS_CACHE_DIR)
-├── acs/                            # raw ACS API responses (JSON)
-├── tiger/                          # downloaded shapefiles + GeoJSON conversions
-├── extracts/                       # per-variable per-state extractions
-└── summaries/                      # state-level rollups for the dashboard map
+├── acs/<year>/                     # raw ACS API downloads
+├── tiger/<year>/                   # downloaded TIGER/Line shapefile ZIPs
+└── indicators/                     # external county/state indicator + time-series files
 ```
+
+Extractions, joins and maps are outputs, not cache: they go under
+`output_root()` (`acs/<table>/…`, `tiger/<level>/…`, `svi/`, `metrics/`, …).
 
 ## Adding new handlers
 

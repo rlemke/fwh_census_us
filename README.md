@@ -109,20 +109,21 @@ census-us tasks.
 
 Every domain operation also has a CLI under `src/census_us/tools/`,
 backed by the same `tools/_lib/` modules the FFL handlers call. So you
-can pull data, build summaries, or load Mongo from the shell without
+can download, extract and join from the shell without
 threading a workflow:
 
 ```bash
-src/census_us/tools/download.sh --kind acs --variable B01003 --states CA,TX,NY
-src/census_us/tools/acs-extract.sh --variable B19013 --state CA
-src/census_us/tools/tiger-extract.sh --state CA --layer county
-src/census_us/tools/ingest-to-db.sh --variable B01003 --state CA
-src/census_us/tools/summarize-state.sh --state CA
-src/census_us/tools/join-geo.sh --state CA --variable B19013
+src/census_us/tools/download.sh --kind acs --state-fips 06
+src/census_us/tools/download.sh --kind tiger --state-fips 06
+src/census_us/tools/acs-extract.sh --csv <acs.csv> --table B19013 --state-fips 06
+src/census_us/tools/tiger-extract.sh --zip <tiger.zip> --state-fips 06
+src/census_us/tools/join-geo.sh --acs-path <acs.json> --tiger-path <tiger.json>
 ```
 
 The CLIs print a JSON dict on stdout (the same shape the FFL handler
-emits) and a human-readable summary on stderr. They never touch
+emits) and a human-readable summary on stderr. MongoDB ingestion and
+`SummarizeState` have no CLI — see
+[`src/census_us/tools/README.md`](src/census_us/tools/README.md). They never touch
 Facetwork's runtime, so they're runnable standalone.
 
 ## Social Vulnerability Index (SVI)
@@ -190,18 +191,20 @@ fwh_census_us/
 ├── tests/                          # repo-level integration tests
 └── src/census_us/
     ├── __init__.py                 # exports `domain: DomainPackage`
-    ├── handlers/                   # 6 event-facet subpackages
+    ├── handlers/                   # 8 event-facet subpackages
     │   ├── acs/                    # ACS demographic extraction
     │   ├── downloads/              # raw HTTP downloads (ACS + TIGER)
     │   ├── ingestion/              # 15 MongoDB upsert handlers
     │   ├── summary/                # state rollups + geo joins
     │   ├── tiger/                  # TIGER county geometry
-    │   ├── vulnerability/          # SVI compute + choropleth (BuildSVIMap, BuildNationalIndex)
+    │   ├── vulnerability/          # SVI + choropleth render engine (BuildSVIMap, Build*Map, …)
+    │   ├── vocab/                  # NL indicator → ACS table resolution
+    │   ├── publish/                # GitHub Pages publisher (PublishWebBundle)
     │   └── shared/census_utils.py  # shim into tools/_lib
     ├── ffl/                        # top-level + per-domain FFL workflows
     └── tools/                      # CLI utilities + _lib/ (real impl)
         ├── _lib/                   # downloader, acs/tiger extractors, db ingest, summary builder,
-        │                          #   svi (SVI + national index), storage (s3/local-aware)
+        │                          #   svi, metrics, maps, publish, site_provenance, storage (s3/local-aware)
         ├── *.py                    # one CLI per major operation
         └── *.sh                    # shell wrappers
 ```

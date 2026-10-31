@@ -1,6 +1,6 @@
 # Census-US — User Guide
 
-> See also: [Examples Guide](../doc/GUIDE.md) | [README](../README.md)
+> See also: [README](README.md) | [Feature specs](docs/README.md) | [FFL examples](docs/ffl-examples.md)
 
 ## When to Use This Example
 
@@ -29,17 +29,20 @@ You want to analyze US county demographics for one or more states. The pipeline 
 
 ### 2. Namespace Decomposition
 
-The pipeline is organized across 6 namespaces in separate FFL files:
+The pipeline is organized across 10 namespaces in separate FFL files:
 
 | Namespace | FFL File | Purpose |
 |-----------|----------|---------|
 | `census.types` | `census_operations.ffl` | 4 shared schemas: CensusFile, ACSResult, TIGERResult, CensusSummary |
-| `census.Operations` | `census_operations.ffl` | 3 download facets |
-| `census.ACS` | `census_acs.ffl` | 12 ACS extraction facets |
-| `census.TIGER` | `census_tiger.ffl` | 4 TIGER extraction facets |
+| `census.Operations` | `census_operations.ffl` | 15 download facets (ACS, TIGER, external indicator + time series) |
+| `census.ACS` | `census_acs.ffl` | 15 ACS extraction facets |
+| `census.TIGER` | `census_tiger.ffl` | 5 TIGER extraction facets |
 | `census.Summary` | `census_summary.ffl` | JoinGeo + SummarizeState |
 | `census.Ingestion` | `census_ingestion.ffl` | 15 database ingestion facets |
-| `census.workflows` | `census.ffl` | 3 workflows |
+| `census.Vocab` | `census_vocab.ffl` | NL indicator → ACS table resolution |
+| `census.Vulnerability` | `census_vulnerability.ffl` | SVI + choropleth render facets |
+| `census.Publish` | `census_publish.ffl` | GitHub Pages publisher |
+| `census.workflows` | `census.ffl` | 25 workflows |
 
 Every namespace imports `census.types` with `use census.types` so all schemas are available by short name.
 
@@ -121,16 +124,16 @@ Each state pipeline runs as an independent sub-workflow with its own 27+ steps, 
 ### 7. Running
 
 ```bash
-# From repo root
-source .venv/bin/activate
+# From this repo's root
 pip install -e ".[dev]"
-pip install -r examples/census-us/requirements.txt  # requests, fiona, shapely, pyshp
+pip install -r requirements.txt  # requests, fiona, shapely, pyshp
 
-# Compile check
-afl examples/census-us/ffl/census.ffl --check
+# Compile check (from a Facetwork checkout)
+fw ffl compile --check --primary src/census_us/ffl/census.ffl \
+  $(for f in $(find src/census_us/handlers -name '*.ffl'); do echo --library $f; done)
 
 # Run tests (no network required)
-pytest examples/census-us/tests/ -v
+pytest tests/ src/census_us/handlers/ -v
 ```
 
 ## Key Concepts
@@ -180,7 +183,7 @@ The compound index `(dataset_key, feature_key)` ensures re-running replaces reco
 
 ## Handler Design
 
-All 36 handlers use deterministic stubs for testing:
+The tests use deterministic stubs for the handlers:
 - **Download handlers**: return cached file metadata without network calls
 - **ACS extractors**: parse CSV from test fixtures, filter by state FIPS
 - **TIGER extractors**: convert shapefiles to GeoJSON (fiona preferred, pyshp fallback)
@@ -213,6 +216,5 @@ The Census maps dashboard module reads from MongoDB collections populated by the
 
 ## Next Steps
 
-- **[site-selection](../site-selection/USER_GUIDE.md)** — combines Census demographics with OSM amenity data for spatial scoring
-- **[osm-geocoder](../osm-geocoder/USER_GUIDE.md)** — full production-scale agent with 580+ handlers
+- **[osm-geocoder](https://github.com/rlemke/fwh_osm)** — production-scale OSM ingestion (standalone repo)
 - **[osm-lz](https://github.com/rlemke/fwh_osm_lz)** — continental-scale OSM LZ + GTFS workflow catalog (standalone repo)

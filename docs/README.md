@@ -50,7 +50,7 @@ together end-to-end, read [**Orchestration workflows**](workflows.md).
 | Spec | What it covers |
 |------|----------------|
 | [ingestion.md](ingestion.md) | `census.Ingestion` — 15 `*ToDB` MongoDB upserts (idempotent `(dataset_key, feature_key)` index); used only by `AnalyzeStateWithDB`. |
-| [publish.md](publish.md) | `census.Publish` — push output bundles to a GitHub Pages repo; the token gate + `ModuleNotFoundError` release that pins publishing to the credentialed host. |
+| [publish.md](publish.md) | `census.Publish` — push output bundles to a GitHub Pages repo; the `requires_env` token declaration (plus a `ModuleNotFoundError` release backstop) that pins publishing to the credentialed host, and the provenance footer stamped on every page. |
 | [ffl-examples.md](ffl-examples.md) | **Usage patterns.** A gallery of complete, compile-checked FFL examples over these facets — one download → parallel extracts, array args into `JoinGeo`, state `foreach`, `PublishWebBundle`, `when` guards, mixins + `catch`. |
 
 ---
