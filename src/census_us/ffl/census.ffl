@@ -487,8 +487,9 @@ namespace census.workflows {
      * Life-expectancy + adult-obesity national county TIME maps from the
      * County Health Rankings release series: each annual CHR release carries
      * one modeled data-year, so the releases assemble into a time series
-     * (obesity ~2007-2022 from 16 releases; life expectancy ~2016-2022 from
-     * 7 releases of 3-year death-record windows). Frame labels are the
+     * (obesity ~2007-2022 from 16 releases, 15 distinct; life expectancy ~2016-2022 from
+     * 7 releases, 6 distinct, of 3-year death-record windows; a release that
+     * repeats the previous one is dropped). Frame labels are the
      * approximate data year (release - 3) - disclosed on each map.
      */
     workflow BuildHealthTimeMapsUS(
