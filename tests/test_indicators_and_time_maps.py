@@ -141,6 +141,21 @@ class TestTimeMap:
         assert vals[2007]["06001"] is None
         assert vals[2024]["06001"] == 57.21
 
+    def test_source_break_is_marked_and_must_be_a_frame(self, out_env, tmp_path):
+        tiger = _county_zip(tmp_path / "tb.zip", [("01", "001", "A", -86.6, 32.5)])
+        values = {y: {"01001": 30.0 + y - 2017} for y in (2017, 2018, 2019, 2020)}
+        res = build_national_county_time_map(
+            tiger, "obesity", values, title="x", region="r-brk", breaks=[2019]
+        )
+        html = open(res.html_path).read()
+        assert "BREAKS=[2019]" in html and 'id="onesrc"' in html
+        assert "The data source changed at 2019" in html
+        plain = build_national_county_time_map(tiger, "obesity", values, title="x", region="r-nb")
+        plain_html = open(plain.html_path).read()
+        assert "BREAKS=[]" in plain_html and 'id="onesrc"' not in plain_html
+        with pytest.raises(ValueError, match="break year"):
+            build_national_county_time_map(tiger, "obesity", values, title="x", region="r", breaks=[2016])
+
     def test_empty_years_raises(self, out_env, tmp_path):
         tiger = _county_zip(tmp_path / "t2.zip", [("01", "001", "A", -86.6, 32.5)])
         with pytest.raises(ValueError, match="No yearly values"):
@@ -157,6 +172,12 @@ class TestCHRReleaseSeries:
             wr.writerow(["01", "001", "01001", "AL", "Autauga County", "0.384"])
         out = indicators.parse_chr_measure(str(p), "v011_rawvalue", scale=100.0)
         assert out["01001"][0] == 38.4
+
+    def test_same_release_data(self):
+        a = {"01001": (30.1, "A"), "01003": (28.0, "B")}
+        assert indicators.same_release_data(a, dict(a))
+        assert not indicators.same_release_data(a, {"01001": (30.1, "A"), "01003": (28.4, "B")})
+        assert not indicators.same_release_data(a, {"01001": (30.1, "A")} | {f"x{i}": (1.0, "") for i in range(5)})
 
     def test_release_url_eras(self):
         assert "sites/default/files/analytic_data2015.csv" in indicators._chr_release_url(2015)

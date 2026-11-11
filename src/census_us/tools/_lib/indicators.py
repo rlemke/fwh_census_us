@@ -384,6 +384,22 @@ CHR_SERIES = {
 CHR_LATEST_RELEASE = 2025
 
 
+def same_release_data(
+    a: dict[str, tuple[float, str]], b: dict[str, tuple[float, str]]
+) -> bool:
+    """True when two releases carry the SAME estimates for a measure.
+
+    CHR sometimes ships one modeled data year in two consecutive releases
+    (measured: obesity in the 2012 and 2013 releases, all 3,126 counties
+    identical). Labelled "release - 3" they become two frames that show no
+    change at all, so the later one is a duplicate, not a year of data.
+    """
+    common = a.keys() & b.keys()
+    if not common or len(common) < 0.9 * min(len(a), len(b)):
+        return False
+    return all(a[k][0] == b[k][0] for k in common)
+
+
 def build_chr_measure_series_csv(measure: str) -> dict[str, Any]:
     """Fetch every CHR release carrying ``measure`` and write a wide time CSV
     (GEOID, NAME, y<data_year>…). Releases missing the column are skipped."""
@@ -394,6 +410,7 @@ def build_chr_measure_series_csv(measure: str) -> dict[str, Any]:
 
     series: dict[str, dict[int, float]] = {}
     names: dict[str, str] = {}
+    prev: tuple[int, dict[str, tuple[float, str]]] | None = None
     for release in range(first_release, CHR_LATEST_RELEASE + 1):
         dest = cstore.join(cache, f"chr_release_{release}.csv")
         raw = _fetch(_chr_release_url(release), dest, min_bytes=1000000)
@@ -402,6 +419,13 @@ def build_chr_measure_series_csv(measure: str) -> dict[str, Any]:
         except ValueError:
             logger.info("CHR %d lacks %s — skipped", release, col)
             continue
+        if prev is not None and same_release_data(prev[1], vals):
+            logger.info(
+                "CHR %d repeats release %d's %s data — skipped (not a new year)",
+                release, prev[0], col,
+            )
+            continue
+        prev = (release, vals)
         year = release + offset
         for fips, (v, name) in vals.items():
             series.setdefault(fips, {})[year] = v

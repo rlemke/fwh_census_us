@@ -954,11 +954,18 @@ def build_national_county_time_map(
     per_sqmi: bool = False,
     stops_override: list[tuple[float, str]] | None = None,
     params: dict | None = None,
+    breaks: list[int] | None = None,
 ) -> NationalCountyResult:
     """One national county choropleth with a YEAR SLIDER (+ play) over
     ``values_by_year``. Color stops are pooled quantiles across ALL years so
     shading is comparable as the slider moves; the highest/lowest-20 side
     panel and the click popup re-rank for the selected year in the browser.
+
+    ``breaks`` are years where the series' source or method changed. The
+    map says so in its description, flags the jump when the slider sits on
+    one, and offers a view limited to the years after the last break. A
+    break year with no frame is an error: a marker on a missing year would
+    point at nothing.
     """
     m = metrics.BY_KEY.get(metric_key)
     if m is None:
@@ -966,6 +973,10 @@ def build_national_county_time_map(
     years = sorted(y for y in values_by_year if values_by_year[y])
     if not years:
         raise ValueError(f"No yearly values supplied for {metric_key}")
+    breaks = sorted(set(breaks or []))
+    missing = [b for b in breaks if b not in years[1:]]
+    if missing:
+        raise ValueError(f"break year(s) {missing} are not a frame after the first ({years})")
 
     # Display names: ACS pulls carry none here, so build from TIGER. A
     # 2-digit GEOID is a STATE feature (tl_us_state.zip) — its NAMELSAD is
@@ -1035,7 +1046,7 @@ def build_national_county_time_map(
     html = _render_national_time_html(
         fc, m, stops, years, title=title, valued_latest=valued_latest,
         county_count=len(features), source_note=source_note, params=params,
-        unit=unit,
+        unit=unit, breaks=breaks,
     )
     html_path = cstore.join(out_dir, "index.html")
     with cstore.open_write(html_path, "w") as f:
@@ -1055,7 +1066,9 @@ def _render_national_time_html(
     source_note: str = "",
     params: dict | None = None,
     unit: str = "county",
+    breaks: list[int] | None = None,
 ) -> str:
+    breaks = breaks or []
     data_js = json.dumps(fc, separators=(",", ":"))
     stops_js = json.dumps(stops)
     years_js = json.dumps(years)
@@ -1070,6 +1083,19 @@ def _render_national_time_html(
         f"Click a {unit} for its value and that year's national rank. Grey = no "
         f"estimate. {valued_latest:,} of {county_count:,} {unit}s have {years[-1]} data."
     )
+    _brk_html = ""
+    if breaks:
+        yrs = ", ".join(str(b) for b in breaks)
+        _desc += (
+            f" <b>&#9888; The data source changed at {yrs}:</b> compare years on the "
+            f"same side of {'it' if len(breaks) == 1 else 'each change'}."
+        )
+        _brk_html = (
+            '<div id="brknote" style="display:none;margin-top:6px;padding:4px 6px;'
+            'background:#fff3cd;border:1px solid #f6c343;border-radius:4px;color:#5d4b00"></div>'
+            '<label style="display:block;margin-top:6px;cursor:pointer">'
+            f'<input type="checkbox" id="onesrc"> Only {breaks[-1]} onward (one source)</label>'
+        )
     _about = f"<p><b>{title}</b></p><p>{_desc}</p><p>Source: {src}</p>"
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
@@ -1114,6 +1140,7 @@ def _render_national_time_html(
   <div id="yearrow"><button id="play">&#9654;</button>
     <input type="range" id="yslider" min="0" max="{len(years) - 1}" value="{len(years) - 1}" step="1">
     <span id="yr">{years[-1]}</span></div>
+  {_brk_html}
   {attribution.ABOUT_MODAL_BUTTON}
 </div>
 <div id="ranks" class="panel"><b style="font-size:12px"><span id="rkyr">{years[-1]}</span> {m.label}: extremes</b>
@@ -1123,8 +1150,8 @@ def _render_national_time_html(
 </div>
 <div id="legend" class="panel"><b>{m.label}</b><div class="scale" id="lgscale"></div></div>
 <script>
-const DATA={data_js}, STOPS={stops_js}, YEARS={years_js};
-let yi=YEARS.length-1;
+const DATA={data_js}, STOPS={stops_js}, YEARS={years_js}, BREAKS={json.dumps(breaks)};
+let yi=YEARS.length-1, LO=0;
 const fmt=v=>{{ if(v===null||v===undefined||v==='') return '—';
   if('{m.fmt}'==='dollar') return '$'+Math.round(v).toLocaleString();
   if('{m.fmt}'==='index') return (Math.round(v*1000)/1000).toString();
@@ -1185,13 +1212,21 @@ map.addControl(new maplibregl.NavigationControl(),'bottom-right');
 const slider=document.getElementById('yslider'), yrlab=document.getElementById('yr');
 function setYear(i){{yi=i; const y=YEARS[yi]; yrlab.textContent=y;
   if(map.getLayer('fill')) map.setPaintProperty('fill','fill-color',exprFor(y));
+  const bn=document.getElementById('brknote');
+  if(bn){{const isB=BREAKS.includes(y);
+    bn.style.display=isB&&yi>LO?'block':'none';
+    if(isB) bn.innerHTML=`&#9888; ${{y}}: new data source. The change from ${{YEARS[yi-1]}} is mostly the switch of source, not a real one-year change.`;}}
   reRank(y);}}
 slider.oninput=()=>setYear(+slider.value);
+const onesrc=document.getElementById('onesrc');
+if(onesrc) onesrc.onchange=()=>{{
+  LO=onesrc.checked?YEARS.indexOf(BREAKS[BREAKS.length-1]):0;
+  slider.min=LO; if(yi<LO){{slider.value=LO; setYear(LO);}} else setYear(yi);}};
 let timer=null;
 document.getElementById('play').onclick=function(){{
   if(timer){{clearInterval(timer);timer=null;this.innerHTML='&#9654;';return;}}
   this.innerHTML='&#9646;&#9646;';
-  timer=setInterval(()=>{{const nxt=(yi+1)%YEARS.length;
+  timer=setInterval(()=>{{const nxt=yi+1>=YEARS.length?LO:yi+1;
     slider.value=nxt; setYear(nxt);
     if(nxt===YEARS.length-1){{clearInterval(timer);timer=null;
       document.getElementById('play').innerHTML='&#9654;';}}
