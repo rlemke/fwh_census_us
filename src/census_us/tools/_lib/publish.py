@@ -356,6 +356,10 @@ def publish_bundles(
         # Every map page links back to the FFL that built it — the whole site,
         # not just this call's bundles (see site_provenance for why here).
         _stamped, unknown = site_provenance.stamp_tree(repo_dir)
+        # ...and no footer covers the page's own bottom-left legend.
+        lifted = site_provenance.lift_tree(repo_dir)
+        if lifted:
+            print(f"publish: footer overlap fix added to {len(lifted)} page(s)", flush=True)
         if unknown:
             print(f"publish: {len(unknown)} page(s) have no FFL link and no registered "
                   f"producer: {', '.join(unknown[:10])}", flush=True)

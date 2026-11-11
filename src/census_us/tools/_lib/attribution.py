@@ -69,6 +69,33 @@ def about_modal_html(about_html: str) -> str:
     )
 
 
+# The provenance footer is fixed at the bottom-left, which is also where most
+# map pages put their legend: on 64+ published pages the footer covered it.
+# Rather than every renderer reserving space (each page's footer wraps to a
+# different height), the footer moves any bottom-anchored panel it overlaps to
+# just above itself, on load and on resize. Its marker attribute keeps the
+# site backfill (site_provenance.lift_tree) idempotent.
+LIFT_MARKER = 'data-fw-lift="1"'
+LIFT_SCRIPT = (
+    f"<script {LIFT_MARKER}>(function(){{"
+    "var f=document.currentScript&&document.currentScript.previousElementSibling;"
+    "if(!f)return;"
+    "function lift(){var r=f.getBoundingClientRect();if(!r.height)return;"
+    "var H=window.innerHeight;"
+    "document.querySelectorAll('body *').forEach(function(e){"
+    "if(e===f||f.contains(e)||e.contains(f)||e.tagName==='SCRIPT')return;"
+    "var cs=getComputedStyle(e);"
+    "if((cs.position!=='absolute'&&cs.position!=='fixed')||cs.display==='none'"
+    "||cs.visibility==='hidden')return;"
+    "var b=e.getBoundingClientRect();"
+    "if(!b.width||!b.height||b.height>H*0.6||b.top<H*0.4)return;"
+    "if(b.left<r.right&&b.right>r.left&&b.top<r.bottom&&b.bottom>r.top){"
+    "e.style.top='auto';e.style.bottom=(H-r.top+8)+'px';}});}"
+    "window.addEventListener('load',lift);window.addEventListener('resize',lift);"
+    "setTimeout(lift,1500);})();</script>"
+)
+
+
 def footer_html(workflow: str, ffl_url: str = CENSUS_FFL_URL, params: dict | None = None) -> str:
     """Return an inline-styled provenance footer ``<div>`` for ``workflow``.
 
@@ -94,4 +121,5 @@ def footer_html(workflow: str, ffl_url: str = CENSUS_FFL_URL, params: dict | Non
         f' &middot; <a href="{escape(repo_url)}" target="_blank" rel="noopener" '
         'style="color:#1565c0;text-decoration:none">source repo</a>'
         f" &middot; generated {_now()}</div>"
+        + LIFT_SCRIPT
     )
