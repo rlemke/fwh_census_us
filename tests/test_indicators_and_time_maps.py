@@ -149,7 +149,7 @@ class TestTimeMap:
         )
         html = open(res.html_path).read()
         assert "BREAKS=[2019]" in html and 'id="onesrc"' in html
-        assert "The data source changed at 2019" in html
+        assert "The data source or method changed at 2019" in html
         plain = build_national_county_time_map(tiger, "obesity", values, title="x", region="r-nb")
         plain_html = open(plain.html_path).read()
         assert "BREAKS=[]" in plain_html and 'id="onesrc"' not in plain_html

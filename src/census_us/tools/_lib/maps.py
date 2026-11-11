@@ -1087,7 +1087,7 @@ def _render_national_time_html(
     if breaks:
         yrs = ", ".join(str(b) for b in breaks)
         _desc += (
-            f" <b>&#9888; The data source changed at {yrs}:</b> compare years on the "
+            f" <b>&#9888; The data source or method changed at {yrs}:</b> compare years on the "
             f"same side of {'it' if len(breaks) == 1 else 'each change'}."
         )
         _brk_html = (
@@ -1215,7 +1215,7 @@ function setYear(i){{yi=i; const y=YEARS[yi]; yrlab.textContent=y;
   const bn=document.getElementById('brknote');
   if(bn){{const isB=BREAKS.includes(y);
     bn.style.display=isB&&yi>LO?'block':'none';
-    if(isB) bn.innerHTML=`&#9888; ${{y}}: new data source. The change from ${{YEARS[yi-1]}} is mostly the switch of source, not a real one-year change.`;}}
+    if(isB) bn.innerHTML=`&#9888; ${{y}}: the source or method changed. The change from ${{YEARS[yi-1]}} is mostly that, not a real one-year change.`;}}
   reRank(y);}}
 slider.oninput=()=>setYear(+slider.value);
 const onesrc=document.getElementById('onesrc');
